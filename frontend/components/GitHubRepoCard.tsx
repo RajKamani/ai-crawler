@@ -1,0 +1,290 @@
+import React from 'react';
+import { View, Text, StyleSheet, Pressable, Linking } from 'react-native';
+import { FontAwesome5, Ionicons } from '@expo/vector-icons';
+import { PostType } from './PostCard';
+
+interface GitHubRepoCardProps {
+  post: PostType;
+  onSummarize: (postId: string) => void;
+  onToggleBookmark: (postId: string, isBookmarked: boolean) => void;
+}
+
+export const GitHubRepoCard: React.FC<GitHubRepoCardProps> = ({
+  post,
+  onSummarize,
+  onToggleBookmark,
+}) => {
+  const repoData = post.raw_data || {};
+  const stars = repoData.stars ?? 0;
+  const forks = repoData.forks ?? 0;
+  const language = repoData.language ?? 'Unknown';
+  const topics = repoData.topics ?? [];
+  const homepage = repoData.homepage;
+
+  // Split title (owner/repo)
+  const parts = post.title.split('/');
+  const owner = parts[0] || post.author || '';
+  const repoName = parts[1] || '';
+
+  // Language color mapping
+  const getLanguageColor = (lang: string) => {
+    switch (lang.toLowerCase()) {
+      case 'python':
+        return '#3572A5';
+      case 'javascript':
+      case 'js':
+        return '#f1e05a';
+      case 'typescript':
+      case 'ts':
+        return '#3178c6';
+      case 'rust':
+        return '#dea584';
+      case 'go':
+      case 'golang':
+        return '#00ADD8';
+      case 'c++':
+        return '#f34b7d';
+      case 'html':
+        return '#e34c26';
+      case 'css':
+        return '#563d7c';
+      default:
+        return '#8E8E93';
+    }
+  };
+
+  return (
+    <View style={styles.card}>
+      {/* Top Source Info */}
+      <View style={styles.header}>
+        <View style={styles.sourceBadge}>
+          <FontAwesome5 name="github" size={13} color="#FFFFFF" />
+          <Text style={styles.sourceText}>GitHub Trending</Text>
+        </View>
+        <Text style={styles.languageText}>
+          <View
+            style={[
+              styles.langDot,
+              { backgroundColor: getLanguageColor(language) },
+            ]}
+          />{' '}
+          {language}
+        </Text>
+      </View>
+
+      {/* Repo Title (Owner / RepoName) */}
+      <Pressable onPress={() => Linking.openURL(post.url)}>
+        <View style={styles.repoTitleContainer}>
+          <Text style={styles.ownerText}>{owner} /</Text>
+          <Text style={styles.repoNameText}>{repoName}</Text>
+        </View>
+      </Pressable>
+
+      {/* Repo Description */}
+      {post.content ? (
+        <Text style={styles.description} numberOfLines={3}>
+          {post.content.split('\n')[0]} {/* Print only description first line */}
+        </Text>
+      ) : null}
+
+      {/* Stats Row */}
+      <View style={styles.statsRow}>
+        <View style={styles.stat}>
+          <Ionicons name="star" size={14} color="#FFCC00" />
+          <Text style={styles.statValue}>{stars.toLocaleString()}</Text>
+        </View>
+        <View style={styles.stat}>
+          <FontAwesome5 name="code-branch" size={12} color="#8E8E93" />
+          <Text style={styles.statValue}>{forks.toLocaleString()}</Text>
+        </View>
+      </View>
+
+      {/* Topics Tags */}
+      {topics.length > 0 && (
+        <View style={styles.topicsContainer}>
+          {topics.slice(0, 4).map((topic: string, idx: number) => (
+            <View key={idx} style={styles.topicBadge}>
+              <Text style={styles.topicText}>{topic}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Bottom Action Bar */}
+      <View style={styles.actionBar}>
+        <Pressable
+          style={styles.actionButton}
+          onPress={() => Linking.openURL(post.url)}
+        >
+          <Ionicons name="logo-github" size={16} color="#9BA1A6" />
+          <Text style={styles.actionText}>View Repo</Text>
+        </Pressable>
+
+        <View style={styles.rightActions}>
+          {/* AI Summary Button */}
+          <Pressable style={styles.summarizeBtn} onPress={() => onSummarize(post.id)}>
+            <Ionicons name="sparkles" size={14} color="#9F62FF" />
+            <Text style={styles.summarizeText}>AI Summary</Text>
+          </Pressable>
+
+          {/* Bookmark Button */}
+          <Pressable
+            style={styles.bookmarkBtn}
+            onPress={() => onToggleBookmark(post.id, post.is_bookmarked)}
+          >
+            <Ionicons
+              name={post.is_bookmarked ? 'bookmark' : 'bookmark-outline'}
+              size={20}
+              color={post.is_bookmarked ? '#FFCC00' : '#9BA1A6'}
+            />
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: '#1E1E24',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#2A2A32',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sourceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2A2A32',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 6,
+  },
+  sourceText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  languageText: {
+    color: '#E5E5EA',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  langDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  repoTitleContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  ownerText: {
+    color: '#9BA1A6',
+    fontSize: 17,
+    fontWeight: '500',
+    marginRight: 4,
+  },
+  repoNameText: {
+    color: '#58A6FF', // GitHub link color
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  description: {
+    color: '#D1D1D6',
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 12,
+  },
+  stat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  statValue: {
+    color: '#8E8E93',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  topicsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 16,
+  },
+  topicBadge: {
+    backgroundColor: '#16202C',
+    borderColor: '#1F3A52',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  topicText: {
+    color: '#58A6FF',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  actionBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#2A2A32',
+    paddingTop: 12,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  actionText: {
+    color: '#9BA1A6',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  rightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  summarizeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#9F62FF',
+    gap: 4,
+    backgroundColor: 'rgba(159, 98, 255, 0.08)',
+  },
+  summarizeText: {
+    color: '#9F62FF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  bookmarkBtn: {
+    padding: 2,
+  },
+});
