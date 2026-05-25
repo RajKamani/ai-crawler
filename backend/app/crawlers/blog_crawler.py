@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 import feedparser
 from datetime import datetime
 from bs4 import BeautifulSoup
@@ -109,7 +110,6 @@ class BlogCrawler(BaseCrawler):
 
     def _extract_image(self, entry, raw_html: str) -> Optional[str]:
         """Extract image URL from enclosures, media tags, or HTML content"""
-        from typing import Optional
         # 1. Try enclosures
         enclosures = entry.get('enclosures', [])
         for enc in enclosures:
