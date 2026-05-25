@@ -14,6 +14,8 @@ services:
         sync: false # Prompts the user to input this secret during setup
       - key: SUPABASE_KEY
         sync: false
+      - key: DATABASE_URL
+        sync: false
       - key: GROQ_API_KEY
         sync: false
       - key: REDDIT_CLIENT_ID
