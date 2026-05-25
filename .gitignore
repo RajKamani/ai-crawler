@@ -44,3 +44,4 @@ yarn-error.*
 *.env
 .vscode
 __pycache__
+steps.md
