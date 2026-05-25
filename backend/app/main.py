@@ -71,6 +71,7 @@ app.include_router(bookmarks.router)
 app.include_router(summary.router)
 app.include_router(crawl.router)
 
+@app.get("/")
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""

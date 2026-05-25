@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1c1b1b',
     borderBottomWidth: 0,
-    maxHeight: '75%',
+    height: '75%',
     paddingBottom: 24,
   },
   dragHandle: {
@@ -157,6 +157,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   scrollArea: {
+    flex: 1,
     paddingHorizontal: 20,
     marginBottom: 16,
   },

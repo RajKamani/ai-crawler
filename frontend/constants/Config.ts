@@ -11,9 +11,8 @@ const HOST = Platform.select({
 const LOCAL_API_URL = `http://${HOST}:8000/api/v1`;
 
 // When backend is deployed to Render, paste your deployed URL here (e.g., 'https://your-service.onrender.com/api/v1')
-const DEPLOYED_RENDER_URL = '';
 
-export const API_BASE_URL = DEPLOYED_RENDER_URL || process.env.EXPO_PUBLIC_API_URL || LOCAL_API_URL;
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || LOCAL_API_URL;
 
 // Mock User Token for authentication (since we bypass full signup for simplicity)
 // In a production app, this would be retrieved from Supabase Auth Session
