@@ -54,7 +54,27 @@ class BaseCrawler(ABC):
             res = supabase.table("posts").insert(post_data).execute()
             if res.data:
                 logger.info(f"Saved post: {title}")
-                return res.data[0]
+                saved_post = res.data[0]
+                
+                # Fetch source type for notification (non-blocking)
+                try:
+                    # Run notification triggering in a background task
+                    import asyncio
+                    from app.services.notification_service import notify_new_post
+                    
+                    # Run fetch and notify in background
+                    async def fetch_and_notify(sid, title, pid):
+                        source_res = supabase.table("sources").select("type").eq("id", sid).execute()
+                        stype = "post"
+                        if source_res.data:
+                            stype = source_res.data[0].get("type", "post")
+                        await notify_new_post(title, pid, stype)
+
+                    asyncio.create_task(fetch_and_notify(source_id, title, saved_post["id"]))
+                except Exception as notify_err:
+                    logger.error(f"Failed to queue notification: {notify_err}")
+
+                return saved_post
         except Exception as e:
             logger.error(f"Failed to save post {title}: {e}")
         return None

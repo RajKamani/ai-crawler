@@ -30,16 +30,51 @@ current_schedules = {}
 
 # helper to run async crawlers from sync scheduler thread
 def run_async(coro):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    return loop.run_until_complete(coro)
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+def start_crawl_log(crawler_name: str) -> str:
+    """Create a new crawl log entry with status 'running' and return its ID"""
+    try:
+        res = supabase.table("crawl_logs").insert({
+            "crawler_name": crawler_name,
+            "status": "running"
+        }).execute()
+        if res.data:
+            return res.data[0]["id"]
+    except Exception as e:
+        logger.error(f"Failed to create crawl log for {crawler_name}: {e}")
+    return None
+
+def finish_crawl_log(log_id: str, status: str, posts_found: int = 0, posts_saved: int = 0, error_message: str = None):
+    """Complete a crawl log entry with status, counts, and/or errors"""
+    if not log_id:
+        return
+    try:
+        update_data = {
+            "status": status,
+            "posts_found": posts_found,
+            "posts_saved": posts_saved,
+            "completed_at": datetime.utcnow().isoformat() + "Z"
+        }
+        if error_message:
+            update_data["error_message"] = error_message[:1000] # truncate
+            
+        supabase.table("crawl_logs").update(update_data).eq("id", log_id).execute()
+    except Exception as e:
+        logger.error(f"Failed to update crawl log {log_id}: {e}")
 
 # Crawler Jobs
-def job_crawl_blog_global():
+def job_crawl_blog_global(log_id: str = None):
     logger.info("Starting global blog crawling job...")
+    if not log_id:
+        log_id = start_crawl_log("blog_global")
+    total_found = 0
+    total_saved = 0
     try:
         # Fetch active global blogs
         res = supabase.table("sources") \
@@ -49,19 +84,32 @@ def job_crawl_blog_global():
             .execute()
         
         for source in res.data:
-            run_async(blog_crawler.crawl_global(source))
+            found, saved = run_async(blog_crawler.crawl_global(source))
+            total_found += found
+            total_saved += saved
+            
+        finish_crawl_log(log_id, "success", total_found, total_saved)
     except Exception as e:
         logger.error(f"Error in job_crawl_blog_global: {e}")
+        finish_crawl_log(log_id, "failed", total_found, total_saved, str(e))
 
-def job_crawl_blog_user():
+def job_crawl_blog_user(log_id: str = None):
     logger.info("Starting user blog crawling job...")
+    if not log_id:
+        log_id = start_crawl_log("blog_user")
     try:
-        run_async(blog_crawler.crawl_user_blogs())
+        found, saved = run_async(blog_crawler.crawl_user_blogs())
+        finish_crawl_log(log_id, "success", found, saved)
     except Exception as e:
         logger.error(f"Error in job_crawl_blog_user: {e}")
+        finish_crawl_log(log_id, "failed", 0, 0, str(e))
 
-def job_crawl_reddit_global():
+def job_crawl_reddit_global(log_id: str = None):
     logger.info("Starting global reddit crawling job...")
+    if not log_id:
+        log_id = start_crawl_log("reddit_global")
+    total_found = 0
+    total_saved = 0
     try:
         res = supabase.table("sources") \
             .select("*") \
@@ -70,19 +118,32 @@ def job_crawl_reddit_global():
             .execute()
         
         for source in res.data:
-            run_async(reddit_crawler.crawl_global(source))
+            found, saved = run_async(reddit_crawler.crawl_global(source))
+            total_found += found
+            total_saved += saved
+            
+        finish_crawl_log(log_id, "success", total_found, total_saved)
     except Exception as e:
         logger.error(f"Error in job_crawl_reddit_global: {e}")
+        finish_crawl_log(log_id, "failed", total_found, total_saved, str(e))
 
-def job_crawl_reddit_user():
+def job_crawl_reddit_user(log_id: str = None):
     logger.info("Starting user reddit crawling job...")
+    if not log_id:
+        log_id = start_crawl_log("reddit_user")
     try:
-        run_async(reddit_crawler.crawl_user_subreddits())
+        found, saved = run_async(reddit_crawler.crawl_user_subreddits())
+        finish_crawl_log(log_id, "success", found, saved)
     except Exception as e:
         logger.error(f"Error in job_crawl_reddit_user: {e}")
+        finish_crawl_log(log_id, "failed", 0, 0, str(e))
 
-def job_crawl_github_trending():
+def job_crawl_github_trending(log_id: str = None):
     logger.info("Starting GitHub trending crawling job...")
+    if not log_id:
+        log_id = start_crawl_log("github_trending")
+    total_found = 0
+    total_saved = 0
     try:
         # Seed github sources if not present (topic:ai, topic:llm, topic:generative-ai)
         # Search query format in sources
@@ -106,9 +167,14 @@ def job_crawl_github_trending():
                 .execute()
 
         for source in res.data:
-            run_async(github_crawler.crawl(source))
+            found, saved = run_async(github_crawler.crawl(source))
+            total_found += found
+            total_saved += saved
+            
+        finish_crawl_log(log_id, "success", total_found, total_saved)
     except Exception as e:
         logger.error(f"Error in job_crawl_github_trending: {e}")
+        finish_crawl_log(log_id, "failed", total_found, total_saved, str(e))
 
 # Mapping from DB crawler name to local Python function
 JOB_MAPPING = {
@@ -209,6 +275,18 @@ def sync_scheduler_intervals():
     except Exception as e:
         logger.error(f"Error syncing scheduler intervals: {e}")
 
+def job_cleanup_stale_posts():
+    """Delete posts older than 90 days to keep database size manageable"""
+    logger.info("Starting stale posts cleanup job...")
+    try:
+        from datetime import timedelta
+        cutoff_date = (datetime.utcnow() - timedelta(days=90)).isoformat() + "Z"
+        res = supabase.table("posts").delete().lt("published_at", cutoff_date).execute()
+        deleted_count = len(res.data) if res.data else 0
+        logger.info(f"Stale posts cleanup complete. Deleted {deleted_count} posts.")
+    except Exception as e:
+        logger.error(f"Error in job_cleanup_stale_posts: {e}")
+
 def start_scheduler():
     """Start APScheduler and initialize jobs"""
     if not scheduler.running:
@@ -224,6 +302,15 @@ def start_scheduler():
             trigger=IntervalTrigger(minutes=3),
             id="scheduler_sync",
             name="Sync crawler schedules with DB",
+            replace_existing=True
+        )
+
+        # Add cleanup job for stale posts, runs daily at midnight
+        scheduler.add_job(
+            job_cleanup_stale_posts,
+            trigger=CronTrigger(hour=0, minute=0),
+            id="stale_posts_cleanup",
+            name="Delete posts older than 90 days",
             replace_existing=True
         )
 

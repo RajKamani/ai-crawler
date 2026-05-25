@@ -67,21 +67,33 @@ async def get_posts(
 
         posts = [format_post(p) for p in res.data]
 
-        # If authenticated, fetch bookmarks to add is_bookmarked field
+        # If authenticated, fetch bookmarks and views
         if user and posts:
             post_ids = [p["id"] for p in posts]
+            
+            # Fetch bookmarks
             bookmarks_res = supabase.table("bookmarks") \
                 .select("post_id") \
                 .eq("user_id", user.id) \
                 .in_("post_id", post_ids) \
                 .execute()
-            
             bookmarked_ids = set(b["post_id"] for b in bookmarks_res.data)
+            
+            # Fetch viewed status
+            views_res = supabase.table("post_views") \
+                .select("post_id") \
+                .eq("user_id", user.id) \
+                .in_("post_id", post_ids) \
+                .execute()
+            viewed_ids = set(v["post_id"] for v in views_res.data)
+            
             for post in posts:
                 post["is_bookmarked"] = post["id"] in bookmarked_ids
+                post["is_viewed"] = post["id"] in viewed_ids
         else:
             for post in posts:
                 post["is_bookmarked"] = False
+                post["is_viewed"] = False
 
         return {"posts": posts, "page": page, "limit": limit, "count": len(posts)}
 
@@ -165,18 +177,33 @@ async def get_personalized_feed(
 
         posts = [format_post(p) for p in res.data]
 
-        # Fetch bookmarks
+        # Fetch bookmarks and views
         if posts:
             post_ids = [p["id"] for p in posts]
+            
+            # Fetch bookmarks
             bookmarks_res = supabase.table("bookmarks") \
                 .select("post_id") \
                 .eq("user_id", user.id) \
                 .in_("post_id", post_ids) \
                 .execute()
-            
             bookmarked_ids = set(b["post_id"] for b in bookmarks_res.data)
+            
+            # Fetch viewed status
+            views_res = supabase.table("post_views") \
+                .select("post_id") \
+                .eq("user_id", user.id) \
+                .in_("post_id", post_ids) \
+                .execute()
+            viewed_ids = set(v["post_id"] for v in views_res.data)
+            
             for post in posts:
                 post["is_bookmarked"] = post["id"] in bookmarked_ids
+                post["is_viewed"] = post["id"] in viewed_ids
+        else:
+            for post in posts:
+                post["is_bookmarked"] = False
+                post["is_viewed"] = False
 
         return {"posts": posts, "page": page, "limit": limit, "count": len(posts)}
 

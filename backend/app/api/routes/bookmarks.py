@@ -1,7 +1,8 @@
 import logging
-from fastapi import APIRouter, HTTPException, Depends, Body
+from fastapi import APIRouter, HTTPException, Depends
 from app.database import supabase
 from app.api.deps import get_current_user
+from app.models.schemas import BookmarkCreate
 
 router = APIRouter(prefix="/api/v1/bookmarks", tags=["bookmarks"])
 logger = logging.getLogger(__name__)
@@ -40,16 +41,12 @@ async def get_my_bookmarks(user = Depends(get_current_user)):
         raise HTTPException(500, f"Database error: {str(e)}")
 
 @router.post("")
-async def create_bookmark(body: dict = Body(...), user = Depends(get_current_user)):
+async def create_bookmark(body: BookmarkCreate, user = Depends(get_current_user)):
     """Save a post to user's bookmarks"""
-    post_id = body.get("post_id")
-    if not post_id:
-        raise HTTPException(400, "post_id is required")
-
     try:
         res = supabase.table("bookmarks").insert({
             "user_id": user.id,
-            "post_id": post_id
+            "post_id": str(body.post_id)
         }).execute()
         return {"bookmark": res.data[0], "message": "Post bookmarked successfully"}
     except Exception as e:

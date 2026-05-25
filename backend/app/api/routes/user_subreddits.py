@@ -1,9 +1,10 @@
 import logging
 import httpx
-from fastapi import APIRouter, HTTPException, Depends, Body
+from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any
 from app.database import supabase
 from app.api.deps import get_current_user
+from app.models.schemas import SubredditAdd, ToggleActiveState
 
 router = APIRouter(tags=["user-subreddits"])
 logger = logging.getLogger(__name__)
@@ -36,16 +37,9 @@ async def list_my_subreddits(user = Depends(get_current_user)):
         raise HTTPException(500, f"Failed to list subreddits: {str(e)}")
 
 @router.post("/api/v1/me/subreddits")
-async def add_subreddit(body: dict = Body(...), user = Depends(get_current_user)):
+async def add_subreddit(body: SubredditAdd, user = Depends(get_current_user)):
     """Add a custom subreddit, validating that it exists on Reddit first"""
-    subreddit_raw = body.get("subreddit_name", "").strip()
-    if not subreddit_raw:
-        raise HTTPException(400, "Subreddit name is required")
-
-    # Clean name (e.g. r/LocalLLaMA -> LocalLLaMA)
-    subreddit_name = subreddit_raw.lower().replace("r/", "").strip()
-    if not subreddit_name:
-        raise HTTPException(400, "Invalid subreddit name")
+    subreddit_name = body.subreddit_name
 
     # 1. Check if user already added it
     existing_res = supabase.table("user_subreddits") \
@@ -101,11 +95,9 @@ async def remove_subreddit(sub_id: str, user = Depends(get_current_user)):
         raise HTTPException(500, f"Database error: {str(e)}")
 
 @router.patch("/api/v1/me/subreddits/{sub_id}")
-async def toggle_subreddit(sub_id: str, body: dict = Body(...), user = Depends(get_current_user)):
+async def toggle_subreddit(sub_id: str, body: ToggleActiveState, user = Depends(get_current_user)):
     """Toggle a subreddit active/inactive"""
-    is_active = body.get("is_active")
-    if is_active is None:
-        raise HTTPException(400, "is_active state must be provided")
+    is_active = body.is_active
 
     try:
         res = supabase.table("user_subreddits") \
@@ -119,7 +111,7 @@ async def toggle_subreddit(sub_id: str, body: dict = Body(...), user = Depends(g
         
         return {"subreddit": res.data[0], "message": f"Subreddit updated"}
     except Exception as e:
-        logger.error(f"Error toggling user subreddit: {e}")
+        logger.error(f"Error toggling user subreddit: {sub_id} for user {user.id}: {e}")
         raise HTTPException(500, f"Database error: {str(e)}")
 
 @router.get("/api/v1/subreddits/popular")

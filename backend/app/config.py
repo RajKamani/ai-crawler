@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "AI Content Crawler"
 
+    # Environment and Hardening Configurations
+    ENV: str = "development"  # development / production
+    ALLOWED_ORIGINS: str = "*"  # Comma-separated list of origins
+    LOG_LEVEL: str = "INFO"
+    DATABASE_URL: Optional[str] = None
+
     # Environment file config
     model_config = SettingsConfigDict(
         env_file=".env",

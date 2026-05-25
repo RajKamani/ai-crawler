@@ -1,7 +1,10 @@
 import logging
-from fastapi import APIRouter, HTTPException, Depends, Body
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from app.api.deps import get_current_user
+from app.models.schemas import CrawlerTrigger
+from app.database import supabase
 from app.scheduler.jobs import (
+    start_crawl_log,
     job_crawl_blog_global,
     job_crawl_blog_user,
     job_crawl_reddit_global,
@@ -20,29 +23,41 @@ CRAWLER_JOBS = {
     "github_trending": job_crawl_github_trending
 }
 
-@router.post("")
-async def trigger_crawl(body: dict = Body(...), user = Depends(get_current_user)):
-    """Manually trigger a crawler task by name"""
-    crawler_name = body.get("crawler")
-    if not crawler_name:
-        raise HTTPException(400, "crawler name is required")
+@router.post("", status_code=202)
+async def trigger_crawl(
+    body: CrawlerTrigger,
+    background_tasks: BackgroundTasks,
+    user = Depends(get_current_user)
+):
+    """Manually trigger a crawler task by name (asynchronous background task)"""
+    crawler_name = body.crawler
 
-    if crawler_name not in CRAWLER_JOBS:
-        raise HTTPException(
-            400, 
-            f"Invalid crawler name. Must be one of: {list(CRAWLER_JOBS.keys())}"
-        )
+    # Start the log synchronously to get a log_id
+    log_id = start_crawl_log(crawler_name)
+    if not log_id:
+        raise HTTPException(500, "Failed to initialize crawl log")
 
+    # Queue job function in background
+    job_func = CRAWLER_JOBS[crawler_name]
+    background_tasks.add_task(job_func, log_id)
+
+    return {
+        "crawler": crawler_name,
+        "status": "accepted",
+        "crawl_log_id": log_id,
+        "message": f"Successfully triggered crawler '{crawler_name}' in background."
+    }
+
+@router.get("/logs")
+async def get_crawl_logs(limit: int = 20, user = Depends(get_current_user)):
+    """Fetch recent crawler execution logs"""
     try:
-        # Run job function
-        # Since these jobs are designed to run synchronously (inside executor) or run loop internally,
-        # we trigger them directly
-        CRAWLER_JOBS[crawler_name]()
-        return {
-            "crawler": crawler_name,
-            "status": "success",
-            "message": f"Successfully triggered crawler '{crawler_name}' in backend."
-        }
+        res = supabase.table("crawl_logs") \
+            .select("*") \
+            .order("started_at", desc=True) \
+            .range(0, limit - 1) \
+            .execute()
+        return {"logs": res.data, "count": len(res.data)}
     except Exception as e:
-        logger.error(f"Error triggering manual crawl for {crawler_name}: {e}")
-        raise HTTPException(500, f"Crawl execution failed: {str(e)}")
+        logger.error(f"Error fetching crawl logs: {e}")
+        raise HTTPException(500, f"Failed to fetch crawl logs: {str(e)}")

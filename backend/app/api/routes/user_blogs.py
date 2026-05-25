@@ -1,8 +1,9 @@
 import logging
 import feedparser
-from fastapi import APIRouter, HTTPException, Depends, Body
+from fastapi import APIRouter, HTTPException, Depends
 from app.database import supabase
 from app.api.deps import get_current_user
+from app.models.schemas import BlogAdd, ToggleActiveState
 
 router = APIRouter(tags=["user-blogs"])
 logger = logging.getLogger(__name__)
@@ -39,12 +40,10 @@ async def list_my_blogs(user = Depends(get_current_user)):
         raise HTTPException(500, f"Failed to list blogs: {str(e)}")
 
 @router.post("/api/v1/me/blogs")
-async def add_blog(body: dict = Body(...), user = Depends(get_current_user)):
+async def add_blog(body: BlogAdd, user = Depends(get_current_user)):
     """Add a custom blog RSS feed to the user's feed list after validation"""
-    name = body.get("name", "").strip()
-    url = body.get("url", "").strip()
-    if not name or not url:
-        raise HTTPException(400, "Blog name and RSS URL are required")
+    name = body.name.strip()
+    url = str(body.url)
     
     # 1. Check if user already added it
     existing_res = supabase.table("user_blogs") \
@@ -93,11 +92,9 @@ async def remove_blog(blog_id: str, user = Depends(get_current_user)):
         raise HTTPException(500, f"Database error: {str(e)}")
 
 @router.patch("/api/v1/me/blogs/{blog_id}")
-async def toggle_blog(blog_id: str, body: dict = Body(...), user = Depends(get_current_user)):
+async def toggle_blog(blog_id: str, body: ToggleActiveState, user = Depends(get_current_user)):
     """Toggle a blog feed active/inactive"""
-    is_active = body.get("is_active")
-    if is_active is None:
-        raise HTTPException(400, "is_active state must be provided")
+    is_active = body.is_active
 
     try:
         res = supabase.table("user_blogs") \

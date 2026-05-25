@@ -11,12 +11,12 @@ logger = logging.getLogger(__name__)
 class BlogCrawler(BaseCrawler):
     async def crawl(self, source):
         """Standard crawl interface for single source (global)"""
-        await self.crawl_global(source)
+        return await self.crawl_global(source)
 
     async def crawl_global(self, source):
         """Crawl default global blog sources (shared across all users)"""
         logger.info(f"Crawling global blog: {source['name']} ({source['url']})")
-        await self._crawl_feed(
+        return await self._crawl_feed(
             feed_url=source["url"],
             source_id=source["id"],
             source_name=source["name"]
@@ -25,6 +25,8 @@ class BlogCrawler(BaseCrawler):
     async def crawl_user_blogs(self):
         """Crawl all active user-added custom blog feeds"""
         logger.info("Crawling user custom blogs...")
+        total_found = 0
+        total_saved = 0
         try:
             # Fetch all active user blogs
             result = supabase.table("user_blogs") \
@@ -34,7 +36,7 @@ class BlogCrawler(BaseCrawler):
             
             if not result.data:
                 logger.info("No active user custom blogs found.")
-                return
+                return 0, 0
 
             # Deduplicate blog URLs across users to avoid multiple requests
             unique_blogs = {}
@@ -44,11 +46,13 @@ class BlogCrawler(BaseCrawler):
             for blog_url, blog_name in unique_blogs.items():
                 try:
                     source_id = await self._get_or_create_source(blog_name, blog_url)
-                    await self._crawl_feed(
+                    found, saved = await self._crawl_feed(
                         feed_url=blog_url,
                         source_id=source_id,
                         source_name=blog_name
                     )
+                    total_found += found
+                    total_saved += saved
                 except Exception as e:
                     logger.error(f"Error crawling user blog {blog_name} ({blog_url}): {e}")
 
@@ -61,20 +65,24 @@ class BlogCrawler(BaseCrawler):
                 
         except Exception as e:
             logger.error(f"Error in crawl_user_blogs: {e}")
+        return total_found, total_saved
 
-    async def _crawl_feed(self, feed_url: str, source_id: str, source_name: str):
+    async def _crawl_feed(self, feed_url: str, source_id: str, source_name: str) -> tuple[int, int]:
         """Crawl a single RSS/Atom feed"""
+        found_count = 0
+        saved_count = 0
         try:
             feed = feedparser.parse(feed_url)
             if feed.bozo and not feed.entries:
                 logger.error(f"Bozo indicator true and no entries for feed: {feed_url}")
-                return
+                return 0, 0
 
             for entry in feed.entries:
                 url = entry.get('link', '')
                 if not url:
                     continue
 
+                found_count += 1
                 if await self.is_duplicate(url):
                     continue
 
@@ -92,7 +100,7 @@ class BlogCrawler(BaseCrawler):
                 
                 thumbnail_url = self._extract_image(entry, raw_html)
 
-                await self.save_post(
+                res = await self.save_post(
                     title=title,
                     content=content,
                     url=url,
@@ -105,8 +113,12 @@ class BlogCrawler(BaseCrawler):
                         "thumbnail_url": thumbnail_url
                     }
                 )
+                if res:
+                    saved_count += 1
+            return found_count, saved_count
         except Exception as e:
             logger.error(f"Error parsing feed {feed_url}: {e}")
+            return found_count, saved_count
 
     def _extract_image(self, entry, raw_html: str) -> Optional[str]:
         """Extract image URL from enclosures, media tags, or HTML content"""

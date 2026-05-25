@@ -1,7 +1,8 @@
 import logging
-from fastapi import APIRouter, HTTPException, Depends, Body
+from fastapi import APIRouter, HTTPException, Depends
 from app.database import supabase
 from app.api.deps import get_current_user
+from app.models.schemas import CrawlerSettingUpdate
 
 router = APIRouter(prefix="/api/v1/settings", tags=["settings"])
 logger = logging.getLogger(__name__)
@@ -22,21 +23,16 @@ async def get_crawler_settings(user = Depends(get_current_user)):
 @router.patch("/crawlers/{name}")
 async def update_crawler_setting(
     name: str, 
-    body: dict = Body(...),
+    body: CrawlerSettingUpdate,
     user = Depends(get_current_user)
 ):
     """Update crawler schedule interval or active status"""
-    interval = body.get("interval_minutes")
-    is_active = body.get("is_active")
-
     updates = {}
-    if interval is not None:
-        if interval == 0 or interval < -1440:
-            raise HTTPException(400, "Invalid schedule configuration. Interval must be positive or between -1 and -1440 for daily schedules.")
-        updates["interval_minutes"] = interval
+    if body.interval_minutes is not None:
+        updates["interval_minutes"] = body.interval_minutes
     
-    if is_active is not None:
-        updates["is_active"] = is_active
+    if body.is_active is not None:
+        updates["is_active"] = body.is_active
 
     if not updates:
         raise HTTPException(400, "Nothing to update")

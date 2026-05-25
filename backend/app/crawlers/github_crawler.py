@@ -8,7 +8,7 @@ from app.crawlers.base import BaseCrawler
 logger = logging.getLogger(__name__)
 
 class GitHubCrawler(BaseCrawler):
-    async def crawl(self, source):
+    async def crawl(self, source) -> tuple[int, int]:
         """
         Crawl trending repositories.
         We search GitHub API using queries defined in source['url'] (e.g. 'topic:ai', 'topic:llm')
@@ -30,16 +30,18 @@ class GitHubCrawler(BaseCrawler):
         if settings.GITHUB_TOKEN:
             headers["Authorization"] = f"token {settings.GITHUB_TOKEN}"
 
+        found_count = 0
+        saved_count = 0
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(url, headers=headers, timeout=15.0)
                 
                 if response.status_code == 403:
                     logger.error("GitHub API Rate Limited (403).")
-                    return
+                    return 0, 0
                 elif response.status_code != 200:
                     logger.error(f"GitHub API returned error code {response.status_code}: {response.text}")
-                    return
+                    return 0, 0
 
                 data = response.json()
                 items = data.get("items", [])
@@ -50,6 +52,7 @@ class GitHubCrawler(BaseCrawler):
                     if not repo_url:
                         continue
 
+                    found_count += 1
                     if await self.is_duplicate(repo_url):
                         continue
 
@@ -74,7 +77,7 @@ class GitHubCrawler(BaseCrawler):
                         published_at = datetime.utcnow()
 
                     # Save repo as a post
-                    await self.save_post(
+                    res = await self.save_post(
                         title=title,
                         content=content,
                         url=repo_url,
@@ -89,5 +92,8 @@ class GitHubCrawler(BaseCrawler):
                             "homepage": item.get("homepage", "")
                         }
                     )
+                    if res:
+                        saved_count += 1
         except Exception as e:
             logger.error(f"Error crawling GitHub search {query}: {e}")
+        return found_count, saved_count

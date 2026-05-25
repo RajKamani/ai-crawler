@@ -74,6 +74,40 @@ CREATE TABLE IF NOT EXISTS crawler_settings (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- 7. Post Views (Mark as Read) Table
+CREATE TABLE IF NOT EXISTS post_views (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    post_id UUID REFERENCES posts(id) ON DELETE CASCADE,
+    viewed_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(user_id, post_id)
+);
+CREATE INDEX IF NOT EXISTS idx_post_views_user ON post_views(user_id);
+
+-- 8. Push Notification Tokens Table
+CREATE TABLE IF NOT EXISTS notification_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    expo_push_token TEXT NOT NULL UNIQUE,
+    device_name TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_notification_tokens_user ON notification_tokens(user_id);
+
+-- 9. Crawl Logs Table (track crawl runs)
+CREATE TABLE IF NOT EXISTS crawl_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    crawler_name TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('running', 'success', 'failed')),
+    posts_found INTEGER DEFAULT 0,
+    posts_saved INTEGER DEFAULT 0,
+    error_message TEXT,
+    started_at TIMESTAMPTZ DEFAULT now(),
+    completed_at TIMESTAMPTZ
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_posts_source ON posts(source_id);
 CREATE INDEX IF NOT EXISTS idx_posts_published ON posts(published_at DESC);

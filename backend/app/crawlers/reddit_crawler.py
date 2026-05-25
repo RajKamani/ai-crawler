@@ -34,36 +34,47 @@ class RedditCrawler(BaseCrawler):
 
     async def crawl(self, source):
         """Standard crawl interface for single source (global)"""
-        await self.crawl_global(source)
+        return await self.crawl_global(source)
 
     async def crawl_global(self, source):
         """Crawl default global subreddit (applies relevance keyword filter)"""
         sub_name = source["url"].replace("r/", "").strip()
         logger.info(f"Crawling global subreddit: r/{sub_name}")
         
-        posts = await self._fetch_reddit_posts(sub_name)
-        for post in posts:
-            if await self.is_duplicate(post["url"]):
-                continue
+        found_count = 0
+        saved_count = 0
+        try:
+            posts = await self._fetch_reddit_posts(sub_name)
+            for post in posts:
+                found_count += 1
+                if await self.is_duplicate(post["url"]):
+                    continue
 
-            # Global subreddits apply strict keyword filtering
-            text_to_check = f"{post['title']} {post['content']}".lower()
-            is_relevant = any(kw in text_to_check for kw in RELEVANCE_KEYWORDS)
+                # Global subreddits apply strict keyword filtering
+                text_to_check = f"{post['title']} {post['content']}".lower()
+                is_relevant = any(kw in text_to_check for kw in RELEVANCE_KEYWORDS)
 
-            if is_relevant:
-                await self.save_post(
-                    title=post["title"],
-                    content=post["content"],
-                    url=post["url"],
-                    author=post["author"],
-                    published_at=post["published_at"],
-                    source_id=source["id"],
-                    raw_data=post["raw_data"]
-                )
+                if is_relevant:
+                    res = await self.save_post(
+                        title=post["title"],
+                        content=post["content"],
+                        url=post["url"],
+                        author=post["author"],
+                        published_at=post["published_at"],
+                        source_id=source["id"],
+                        raw_data=post["raw_data"]
+                    )
+                    if res:
+                        saved_count += 1
+        except Exception as e:
+            logger.error(f"Error in crawl_global for subreddit r/{sub_name}: {e}")
+        return found_count, saved_count
 
     async def crawl_user_subreddits(self):
         """Crawl all active user-added subreddits (unfiltered)"""
         logger.info("Crawling user custom subreddits...")
+        total_found = 0
+        total_saved = 0
         try:
             result = supabase.table("user_subreddits") \
                 .select("subreddit_name") \
@@ -72,7 +83,7 @@ class RedditCrawler(BaseCrawler):
             
             if not result.data:
                 logger.info("No active user custom subreddits found.")
-                return
+                return 0, 0
 
             # Deduplicate subreddits across users
             unique_subs = set(row["subreddit_name"].lower().replace("r/", "").strip() for row in result.data)
@@ -83,9 +94,10 @@ class RedditCrawler(BaseCrawler):
                     posts = await self._fetch_reddit_posts(sub_name)
                     
                     for post in posts:
+                        total_found += 1
                         if not await self.is_duplicate(post["url"]):
                             # No keyword filter for user custom subreddits
-                            await self.save_post(
+                            res = await self.save_post(
                                 title=post["title"],
                                 content=post["content"],
                                 url=post["url"],
@@ -94,6 +106,8 @@ class RedditCrawler(BaseCrawler):
                                 source_id=source_id,
                                 raw_data=post["raw_data"]
                             )
+                            if res:
+                                total_saved += 1
                 except Exception as e:
                     logger.error(f"Error crawling user subreddit r/{sub_name}: {e}")
 
@@ -106,6 +120,7 @@ class RedditCrawler(BaseCrawler):
 
         except Exception as e:
             logger.error(f"Error in crawl_user_subreddits: {e}")
+        return total_found, total_saved
 
     async def _fetch_reddit_posts(self, subreddit_name: str) -> List[Dict[str, Any]]:
         """Fetch posts from a subreddit using PRAW or public JSON fallback"""
