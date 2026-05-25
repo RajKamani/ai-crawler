@@ -17,7 +17,11 @@ POPULAR_BLOG_SUGGESTIONS = [
     {"name": "Lil'Log (Lilian Weng)", "url": "https://lilianweng.github.io/index.xml"},
     {"name": "Jay Alammar", "url": "https://jalammar.github.io/feed.xml"},
     {"name": "Chip Huyen", "url": "https://huyenchip.com/feed.xml"},
-    {"name": "AI Snake Oil", "url": "https://www.aisnakeoil.com/feed"}
+    {"name": "AI Snake Oil", "url": "https://www.aisnakeoil.com/feed"},
+    {"name": "Claude News", "url": "https://raw.githubusercontent.com/taobojlen/anthropic-rss-feed/main/anthropic_news_rss.xml"},
+    {"name": "Claude blog", "url": "https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_claude.xml"},
+    {"name": "OpenAI blog", "url": "https://openai.com/news/rss.xml"}
+    
 ]
 
 @router.get("/api/v1/me/blogs")

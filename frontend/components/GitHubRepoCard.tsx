@@ -58,7 +58,7 @@ export const GitHubRepoCard: React.FC<GitHubRepoCardProps> = ({
       {/* Top Source Info */}
       <View style={styles.header}>
         <View style={styles.sourceBadge}>
-          <FontAwesome5 name="github" size={13} color="#FFFFFF" />
+          <FontAwesome5 name="github" size={13} color="#1c1b1b" />
           <Text style={styles.sourceText}>GitHub Trending</Text>
         </View>
         <Text style={styles.languageText}>
@@ -90,11 +90,11 @@ export const GitHubRepoCard: React.FC<GitHubRepoCardProps> = ({
       {/* Stats Row */}
       <View style={styles.statsRow}>
         <View style={styles.stat}>
-          <Ionicons name="star" size={14} color="#FFCC00" />
+          <Ionicons name="star" size={14} color="#bc000a" />
           <Text style={styles.statValue}>{stars.toLocaleString()}</Text>
         </View>
         <View style={styles.stat}>
-          <FontAwesome5 name="code-branch" size={12} color="#8E8E93" />
+          <FontAwesome5 name="code-branch" size={12} color="#1c1b1b" />
           <Text style={styles.statValue}>{forks.toLocaleString()}</Text>
         </View>
       </View>
@@ -116,14 +116,14 @@ export const GitHubRepoCard: React.FC<GitHubRepoCardProps> = ({
           style={styles.actionButton}
           onPress={() => Linking.openURL(post.url)}
         >
-          <Ionicons name="logo-github" size={16} color="#9BA1A6" />
+          <Ionicons name="logo-github" size={16} color="#1c1b1b" />
           <Text style={styles.actionText}>View Repo</Text>
         </Pressable>
 
         <View style={styles.rightActions}>
           {/* AI Summary Button */}
           <Pressable style={styles.summarizeBtn} onPress={() => onSummarize(post.id)}>
-            <Ionicons name="sparkles" size={14} color="#9F62FF" />
+            <Ionicons name="sparkles" size={14} color="#bc000a" />
             <Text style={styles.summarizeText}>AI Summary</Text>
           </Pressable>
 
@@ -135,7 +135,7 @@ export const GitHubRepoCard: React.FC<GitHubRepoCardProps> = ({
             <Ionicons
               name={post.is_bookmarked ? 'bookmark' : 'bookmark-outline'}
               size={20}
-              color={post.is_bookmarked ? '#FFCC00' : '#9BA1A6'}
+              color={post.is_bookmarked ? '#bc000a' : '#1c1b1b'}
             />
           </Pressable>
         </View>
@@ -146,17 +146,12 @@ export const GitHubRepoCard: React.FC<GitHubRepoCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#1E1E24',
-    borderRadius: 16,
+    backgroundColor: '#fcf9f8',
+    borderRadius: 0,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#2A2A32',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 4,
+    borderColor: '#1c1b1b',
   },
   header: {
     flexDirection: 'row',
@@ -167,26 +162,30 @@ const styles = StyleSheet.create({
   sourceBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2A2A32',
+    backgroundColor: '#f0eded',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 0,
+    borderWidth: 1,
+    borderColor: '#1c1b1b',
     gap: 6,
   },
   sourceText: {
-    color: '#FFFFFF',
+    color: '#1c1b1b',
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: 'SpaceMono',
   },
   languageText: {
-    color: '#E5E5EA',
+    color: '#1c1b1b',
     fontSize: 12,
     fontWeight: '500',
+    fontFamily: 'SpaceMono',
   },
   langDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: 0,
   },
   repoTitleContainer: {
     flexDirection: 'row',
@@ -195,21 +194,24 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   ownerText: {
-    color: '#9BA1A6',
+    color: '#926f6a',
     fontSize: 17,
     fontWeight: '500',
     marginRight: 4,
+    fontFamily: 'SpaceMono',
   },
   repoNameText: {
-    color: '#58A6FF', // GitHub link color
+    color: '#bc000a',
     fontSize: 18,
     fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
   description: {
-    color: '#D1D1D6',
+    color: '#1c1b1b',
     fontSize: 13,
     lineHeight: 18,
     marginBottom: 12,
+    fontFamily: 'SpaceMono',
   },
   statsRow: {
     flexDirection: 'row',
@@ -222,9 +224,10 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   statValue: {
-    color: '#8E8E93',
+    color: '#1c1b1b',
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: 'SpaceMono',
   },
   topicsContainer: {
     flexDirection: 'row',
@@ -233,24 +236,25 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   topicBadge: {
-    backgroundColor: '#16202C',
-    borderColor: '#1F3A52',
+    backgroundColor: '#f0eded',
+    borderColor: '#1c1b1b',
     borderWidth: 1,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 12,
+    borderRadius: 0,
   },
   topicText: {
-    color: '#58A6FF',
+    color: '#00647f',
     fontSize: 11,
     fontWeight: '500',
+    fontFamily: 'SpaceMono',
   },
   actionBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#2A2A32',
+    borderTopColor: '#1c1b1b',
     paddingTop: 12,
   },
   actionButton: {
@@ -259,9 +263,10 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   actionText: {
-    color: '#9BA1A6',
+    color: '#1c1b1b',
     fontSize: 13,
     fontWeight: '500',
+    fontFamily: 'SpaceMono',
   },
   rightActions: {
     flexDirection: 'row',
@@ -273,16 +278,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 8,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#9F62FF',
+    borderColor: '#1c1b1b',
     gap: 4,
-    backgroundColor: 'rgba(159, 98, 255, 0.08)',
+    backgroundColor: '#f0eded',
   },
   summarizeText: {
-    color: '#9F62FF',
+    color: '#bc000a',
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: 'SpaceMono',
   },
   bookmarkBtn: {
     padding: 2,

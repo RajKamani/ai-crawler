@@ -7,12 +7,15 @@ import {
   TextInput,
   ActivityIndicator,
   Pressable,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { API_BASE_URL, AUTH_HEADER } from '@/constants/Config';
 import { PostType } from '@/components/PostCard';
 import { InshortsCard } from '@/components/InshortsCard';
+import { useViewedPosts } from '@/hooks/useViewedPosts';
+import { useNewContentNotification } from '@/hooks/useNewContentNotification';
 
 export default function HomeFeedScreen() {
   const [posts, setPosts] = useState<PostType[]>([]);
@@ -22,9 +25,47 @@ export default function HomeFeedScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [sources, setSources] = useState<Array<{ id: string; name: string; type: string }>>([]);
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   
   // Height container measurement
   const [containerHeight, setContainerHeight] = useState(0);
+
+  // Viewed posts and new data notification hooks
+  const { viewedIds, markAsViewed } = useViewedPosts();
+  const latestLocalPostId = posts.length > 0 ? posts[0].id : null;
+  const { newPostsAvailable, setNewPostsAvailable } = useNewContentNotification(latestLocalPostId);
+
+  const onViewableItemsChanged = React.useRef(({ viewableItems }: any) => {
+    if (viewableItems && viewableItems.length > 0) {
+      const activePost = viewableItems[0].item;
+      if (activePost && activePost.id) {
+        markAsViewed(activePost.id);
+      }
+    }
+  }).current;
+
+  const viewabilityConfig = React.useRef({
+    itemVisiblePercentThreshold: 50,
+  }).current;
+
+  // Fetch active sources on mount
+  useEffect(() => {
+    const fetchSources = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/posts/sources`, {
+          headers: { ...AUTH_HEADER },
+        });
+        const data = await response.json();
+        if (response.ok) {
+          setSources(data.sources || []);
+        }
+      } catch (error) {
+        console.error('Error fetching sources:', error);
+      }
+    };
+    fetchSources();
+  }, []);
 
   // Debounce search input
   useEffect(() => {
@@ -34,39 +75,49 @@ export default function HomeFeedScreen() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Reset feed on search query change
+  // Reset feed on search query or selected source change
   useEffect(() => {
+    setHasMore(true);
     fetchFeed(1, true);
-  }, [debouncedQuery]);
+  }, [debouncedQuery, selectedSourceId]);
 
   const fetchFeed = async (pageNum: number, shouldReset = false) => {
     if (isLoading) return;
     setIsLoading(true);
     try {
       let url = `${API_BASE_URL}/posts/personalized?page=${pageNum}&limit=10`;
+      if (selectedSourceId) {
+        url += `&source_id=${selectedSourceId}`;
+      }
       if (debouncedQuery.trim()) {
         url = `${API_BASE_URL}/posts?page=${pageNum}&limit=10&q=${encodeURIComponent(
           debouncedQuery
         )}`;
+        if (selectedSourceId) {
+          url += `&source_id=${selectedSourceId}`;
+        }
       }
 
       const response = await fetch(url, {
         headers: { ...AUTH_HEADER },
       });
-      const data = await response.json();
-
-      if (response.ok) {
-        const newPosts = data.posts || [];
-        if (shouldReset) {
-          setPosts(newPosts);
-        } else {
-          setPosts((prev) => [...prev, ...newPosts]);
-        }
-        setPage(pageNum);
-        setHasMore(newPosts.length === 10);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+
+      const data = await response.json();
+      const newPosts = data.posts || [];
+      if (shouldReset) {
+        setPosts(newPosts);
+      } else {
+        setPosts((prev) => [...prev, ...newPosts]);
+      }
+      setPage(pageNum);
+      setHasMore(newPosts.length === 10);
     } catch (error) {
       console.error('Error fetching feed:', error);
+      setHasMore(false);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -75,11 +126,12 @@ export default function HomeFeedScreen() {
 
   const handleRefresh = () => {
     setIsRefreshing(true);
+    setHasMore(true);
     fetchFeed(1, true);
   };
 
   const handleLoadMore = () => {
-    if (!isLoading && hasMore) {
+    if (!isLoading && hasMore && posts.length > 0) {
       fetchFeed(page + 1);
     }
   };
@@ -155,10 +207,11 @@ export default function HomeFeedScreen() {
           containerHeight={containerHeight}
           onToggleBookmark={handleToggleBookmark}
           onSummarize={handleSummarize}
+          isViewed={viewedIds.has(item.id)}
         />
       );
     },
-    [containerHeight]
+    [containerHeight, viewedIds]
   );
 
   return (
@@ -166,28 +219,91 @@ export default function HomeFeedScreen() {
       {/* Header Area */}
       <View style={styles.header}>
         <View style={styles.titleContainer}>
-          <Text style={styles.headerTitle}>AI Crawler</Text>
-          <Text style={styles.headerSubtitle}>Personalized Inshorts Feed</Text>
+          <Text style={styles.headerTitle}>AI CRAWLER</Text>
+          <Text style={styles.headerSubtitle}>PERSONALIZED FEED // INSHORTS</Text>
         </View>
       </View>
 
+      {/* New updates banner */}
+      {newPostsAvailable && (
+        <Pressable
+          style={styles.newPostsBanner}
+          onPress={() => {
+            setNewPostsAvailable(false);
+            handleRefresh();
+          }}
+        >
+          <Ionicons name="alert-circle" size={16} color="#ffffff" style={styles.bannerIcon} />
+          <Text style={styles.newPostsBannerText}>NEW FEED UPDATES RECEIVED // TAP TO RELOAD</Text>
+        </Pressable>
+      )}
+
       {/* Search Input */}
       <View style={styles.searchBar}>
-        <Ionicons name="search" size={18} color="#8E8E93" style={styles.searchIcon} />
+        <Ionicons name="search" size={18} color="#1c1b1b" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search topics, libraries, ideas..."
-          placeholderTextColor="#8E8E93"
+          placeholder="SEARCH TOPICS, LIBRARIES, IDEAS..."
+          placeholderTextColor="#926f6a"
           value={searchQuery}
           onChangeText={setSearchQuery}
           autoCorrect={false}
         />
         {searchQuery ? (
           <Pressable onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={18} color="#8E8E93" />
+            <Ionicons name="close-circle" size={18} color="#1c1b1b" />
           </Pressable>
         ) : null}
       </View>
+
+      {/* Scrollable Provider Selection Chips */}
+      {sources.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.chipsScrollView}
+          contentContainerStyle={styles.chipsContent}
+        >
+          <Pressable
+            style={[
+              styles.chipButton,
+              selectedSourceId === null && styles.chipActive,
+            ]}
+            onPress={() => setSelectedSourceId(null)}
+          >
+            <Text
+              style={[
+                styles.chipText,
+                selectedSourceId === null && styles.chipActiveText,
+              ]}
+            >
+              ALL FEED
+            </Text>
+          </Pressable>
+          {sources.map((src) => {
+            const isActive = selectedSourceId === src.id;
+            return (
+              <Pressable
+                key={src.id}
+                style={[
+                  styles.chipButton,
+                  isActive && styles.chipActive,
+                ]}
+                onPress={() => setSelectedSourceId(src.id)}
+              >
+                <Text
+                  style={[
+                    styles.chipText,
+                    isActive && styles.chipActiveText,
+                  ]}
+                >
+                  {src.name.toUpperCase()}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      )}
 
       {/* Main Snapping Area */}
       <View
@@ -208,6 +324,8 @@ export default function HomeFeedScreen() {
             onRefresh={handleRefresh}
             onEndReached={handleLoadMore}
             onEndReachedThreshold={0.5}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
             getItemLayout={(data, index) => ({
               length: containerHeight,
               offset: containerHeight * index,
@@ -216,14 +334,22 @@ export default function HomeFeedScreen() {
             ListEmptyComponent={
               isLoading ? (
                 <View style={styles.centerContainer}>
-                  <ActivityIndicator size="large" color="#9F62FF" />
+                  <ActivityIndicator size="large" color="#bc000a" />
                 </View>
               ) : (
                 <View style={styles.emptyContainer}>
-                  <Ionicons name="newspaper-outline" size={48} color="#3A3A42" />
-                  <Text style={styles.emptyText}>No posts available in your feed.</Text>
+                  <Ionicons name="newspaper-outline" size={48} color="#1c1b1b" />
+                  <Text style={styles.emptyText}>NO POSTS AVAILABLE IN YOUR FEED.</Text>
                 </View>
               )
+            }
+            ListFooterComponent={
+              isLoading && posts.length > 0 ? (
+                <View style={styles.footerLoader}>
+                  <ActivityIndicator size="small" color="#bc000a" />
+                  <Text style={styles.footerLoaderText}>LOADING MORE POSTS...</Text>
+                </View>
+              ) : null
             }
           />
         )}
@@ -235,71 +361,148 @@ export default function HomeFeedScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#fcf9f8',
   },
   header: {
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingVertical: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#000000',
+    backgroundColor: '#fcf9f8',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1c1b1b',
   },
   titleContainer: {
     flexDirection: 'column',
   },
   headerTitle: {
-    color: '#FFFFFF',
+    color: '#1c1b1b',
     fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
   headerSubtitle: {
-    color: '#9F62FF',
+    color: '#bc000a',
     fontSize: 12,
-    fontWeight: '600',
-    marginTop: 1,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
+    marginTop: 2,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#16161A',
-    borderRadius: 12,
+    backgroundColor: '#f0eded',
+    borderRadius: 0,
     marginHorizontal: 20,
-    marginVertical: 8,
+    marginVertical: 12,
     paddingHorizontal: 12,
     height: 40,
     borderWidth: 1,
-    borderColor: '#2A2A32',
+    borderColor: '#1c1b1b',
   },
   searchIcon: {
     marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    color: '#FFFFFF',
-    fontSize: 14,
+    color: '#1c1b1b',
+    fontSize: 13,
+    fontFamily: 'SpaceMono',
   },
   feedWrapper: {
     flex: 1,
     width: '100%',
-    backgroundColor: '#000000',
+    backgroundColor: '#fcf9f8',
   },
   centerContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 100,
+    backgroundColor: '#fcf9f8',
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 100,
     gap: 12,
+    backgroundColor: '#fcf9f8',
   },
   emptyText: {
-    color: '#8E8E93',
-    fontSize: 14,
+    color: '#926f6a',
+    fontSize: 13,
     textAlign: 'center',
+    fontFamily: 'SpaceMono',
+  },
+  footerLoader: {
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fcf9f8',
+    borderTopWidth: 1,
+    borderTopColor: '#1c1b1b',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  footerLoaderText: {
+    color: '#bc000a',
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
+  },
+  chipsScrollView: {
+    maxHeight: 40,
+    marginHorizontal: 20,
+    marginBottom: 8,
+  },
+  chipsContent: {
+    gap: 8,
+    paddingRight: 20,
+    alignItems: 'center',
+  },
+  chipButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#1c1b1b',
+    backgroundColor: '#fcf9f8',
+    borderRadius: 0,
+  },
+  chipActive: {
+    backgroundColor: '#bc000a',
+    borderColor: '#bc000a',
+  },
+  chipText: {
+    color: '#1c1b1b',
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
+  },
+  chipActiveText: {
+    color: '#ffffff',
+  },
+  newPostsBanner: {
+    backgroundColor: '#bc000a',
+    borderWidth: 1,
+    borderColor: '#1c1b1b',
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 20,
+    marginTop: 12,
+    marginBottom: 0,
+    flexDirection: 'row',
+    gap: 8,
+    borderRadius: 0,
+  },
+  newPostsBannerText: {
+    fontFamily: 'SpaceMono',
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  bannerIcon: {
+    marginTop: -1,
   },
 });

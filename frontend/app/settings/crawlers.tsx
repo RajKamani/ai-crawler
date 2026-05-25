@@ -3,20 +3,77 @@ import {
   StyleSheet,
   View,
   Text,
-  Pressable,
   ScrollView,
   Switch,
   ActivityIndicator,
+  Pressable,
+  Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { useCrawlerSettings, CrawlerSchedule } from '@/hooks/useCrawlerSettings';
 
+// Conditionally import DateTimePicker to prevent Web bundler crashes
+let DateTimePicker: any = null;
+if (Platform.OS !== 'web') {
+  try {
+    DateTimePicker = require('@react-native-community/datetimepicker').default;
+  } catch (err) {
+    console.warn('Failed to load native DateTimePicker:', err);
+  }
+}
+
+// -------------------------------------------------------------
+// HELPER FUNCTIONS FOR SCHEDULE ENCODING
+// -------------------------------------------------------------
+
+const getScheduleMode = (interval: number): 'interval' | 'daily' | 'date_time' => {
+  if (interval < 0) return 'daily';
+  if (interval >= 1000000) return 'date_time';
+  return 'interval';
+};
+
+const decodeDailyTime = (interval: number) => {
+  const minutes = Math.abs(interval) - 1;
+  const hour = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  return { hour, minute };
+};
+
+const formatDailyTime = (hour: number, minute: number) => {
+  return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+};
+
+const encodeDailyTime = (hour: number, minute: number) => {
+  return -(hour * 60 + minute + 1);
+};
+
+const decodeDateTime = (interval: number) => {
+  return new Date(interval * 60 * 1000);
+};
+
+const formatDateTime = (date: Date) => {
+  return date.toLocaleString();
+};
+
+const encodeDateTime = (date: Date) => {
+  return Math.floor(date.getTime() / (60 * 1000));
+};
+
+// -------------------------------------------------------------
+// MAIN COMPONENT
+// -------------------------------------------------------------
+
 export default function CrawlerSettingsScreen() {
-  const router = useRouter();
   const { schedules, isLoading, updateSchedule } = useCrawlerSettings();
   const [updatingName, setUpdatingName] = useState<string | null>(null);
+
+  // Native Picker States
+  const [activePickerCrawler, setActivePickerCrawler] = useState<string | null>(null);
+  const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
+  const [pickerValue, setPickerValue] = useState<Date>(new Date());
+  
+  // To handle the sequential Date -> Time selection flow for Specific DateTime on native
+  const [dateTimeFlow, setDateTimeFlow] = useState<boolean>(false);
 
   const getDisplayName = (name: string) => {
     switch (name) {
@@ -77,19 +134,141 @@ export default function CrawlerSettingsScreen() {
     }
   };
 
-  return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-        </Pressable>
-        <Text style={styles.headerTitle}>Crawler Schedules</Text>
-      </View>
+  const handleModeChange = async (name: string, targetMode: 'interval' | 'daily' | 'date_time') => {
+    setUpdatingName(name);
+    try {
+      let defaultVal = 60;
+      if (targetMode === 'daily') {
+        defaultVal = encodeDailyTime(9, 0); // 09:00 AM default daily
+      } else if (targetMode === 'date_time') {
+        // Default tomorrow at same time
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        defaultVal = encodeDateTime(tomorrow);
+      }
+      await updateSchedule(name, defaultVal, undefined);
+    } catch (err) {
+      console.error('Error changing mode:', err);
+    } finally {
+      setUpdatingName(null);
+    }
+  };
 
+  // --- Native DateTimePicker Handlers ---
+  const handleNativePickerChange = async (event: any, selectedValue?: Date) => {
+    if (event.type === 'dismissed' || !selectedValue) {
+      setActivePickerCrawler(null);
+      setDateTimeFlow(false);
+      return;
+    }
+
+    const crawlerName = activePickerCrawler;
+    if (!crawlerName) return;
+
+    if (getScheduleMode(schedules.find(s => s.crawler_name === crawlerName)?.interval_minutes || 0) === 'daily') {
+      // Daily time mode - simple
+      setActivePickerCrawler(null);
+      setUpdatingName(crawlerName);
+      try {
+        const encoded = encodeDailyTime(selectedValue.getHours(), selectedValue.getMinutes());
+        await updateSchedule(crawlerName, encoded, undefined);
+      } catch (err) {
+        console.error('Error saving daily time:', err);
+      } finally {
+        setUpdatingName(null);
+      }
+    } else {
+      // Specific Date/Time mode (Once)
+      if (pickerMode === 'date') {
+        // Date picked, now prompt for Time
+        setPickerValue(selectedValue);
+        setPickerMode('time');
+        setDateTimeFlow(true);
+      } else {
+        // Time picked, merge date + time
+        const mergedDate = new Date(pickerValue);
+        mergedDate.setHours(selectedValue.getHours());
+        mergedDate.setMinutes(selectedValue.getMinutes());
+        mergedDate.setSeconds(0);
+
+        setActivePickerCrawler(null);
+        setDateTimeFlow(false);
+        setUpdatingName(crawlerName);
+
+        try {
+          const encoded = encodeDateTime(mergedDate);
+          await updateSchedule(crawlerName, encoded, undefined);
+        } catch (err) {
+          console.error('Error saving date/time:', err);
+        } finally {
+          setUpdatingName(null);
+        }
+      }
+    }
+  };
+
+  const openNativePicker = (crawlerName: string, mode: 'daily' | 'once') => {
+    const schedule = schedules.find(s => s.crawler_name === crawlerName);
+    if (!schedule) return;
+
+    setActivePickerCrawler(crawlerName);
+    if (mode === 'daily') {
+      setPickerMode('time');
+      const { hour, minute } = decodeDailyTime(schedule.interval_minutes);
+      const d = new Date();
+      d.setHours(hour, minute, 0);
+      setPickerValue(d);
+      setDateTimeFlow(false);
+    } else {
+      setPickerMode('date');
+      const currentVal = schedule.interval_minutes >= 1000000 
+        ? decodeDateTime(schedule.interval_minutes) 
+        : new Date();
+      setPickerValue(currentVal);
+      setDateTimeFlow(true);
+    }
+  };
+
+  // --- Web Picker Handlers ---
+  const handleWebTimeChange = async (crawlerName: string, timeString: string) => {
+    if (!timeString) return;
+    const [hStr, mStr] = timeString.split(':');
+    const h = parseInt(hStr, 10);
+    const m = parseInt(mStr, 10);
+    if (isNaN(h) || isNaN(m)) return;
+
+    setUpdatingName(crawlerName);
+    try {
+      const encoded = encodeDailyTime(h, m);
+      await updateSchedule(crawlerName, encoded, undefined);
+    } catch (err) {
+      console.error('Error updating web time:', err);
+    } finally {
+      setUpdatingName(null);
+    }
+  };
+
+  const handleWebDateChange = async (crawlerName: string, dateTimeString: string) => {
+    if (!dateTimeString) return;
+    const date = new Date(dateTimeString);
+    if (isNaN(date.getTime())) return;
+
+    setUpdatingName(crawlerName);
+    try {
+      const encoded = encodeDateTime(date);
+      await updateSchedule(crawlerName, encoded, undefined);
+    } catch (err) {
+      console.error('Error updating web datetime:', err);
+    } finally {
+      setUpdatingName(null);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
       {isLoading && schedules.length === 0 ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#FF9500" />
+          <ActivityIndicator size="large" color="#bc000a" />
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -99,113 +278,239 @@ export default function CrawlerSettingsScreen() {
 
           {schedules.map((schedule) => {
             const isUpdating = updatingName === schedule.crawler_name;
+            const mode = getScheduleMode(schedule.interval_minutes);
 
             return (
               <View key={schedule.id} style={styles.scheduleCard}>
                 {/* Header Row: Title and Switch */}
                 <View style={styles.cardHeader}>
                   <View style={styles.titleArea}>
-                    <Text style={styles.cardTitle}>{getDisplayName(schedule.crawler_name)}</Text>
+                    <Text style={styles.cardTitle}>{getDisplayName(schedule.crawler_name).toUpperCase()}</Text>
                     <Text style={styles.cardDesc}>{getDescription(schedule.crawler_name)}</Text>
                   </View>
                   <View style={styles.actionArea}>
                     {isUpdating ? (
-                      <ActivityIndicator size="small" color="#FF9500" style={styles.spinner} />
+                      <ActivityIndicator size="small" color="#bc000a" style={styles.spinner} />
                     ) : (
                       <Switch
                         value={schedule.is_active}
                         onValueChange={(val) => handleToggle(schedule, val)}
-                        trackColor={{ false: '#3A3A42', true: 'rgba(255, 149, 0, 0.4)' }}
-                        thumbColor={schedule.is_active ? '#FF9500' : '#8E8E93'}
+                        trackColor={{ false: '#dcd9d9', true: 'rgba(188, 0, 10, 0.3)' }}
+                        thumbColor={schedule.is_active ? '#bc000a' : '#926f6a'}
                       />
                     )}
                   </View>
                 </View>
 
-                {/* Footer Controls: Interval adjustment */}
                 {schedule.is_active && (
-                  <View style={styles.intervalControls}>
-                    <Text style={styles.intervalText}>
-                      Interval:{' '}
-                      <Text style={styles.intervalValue}>{schedule.interval_minutes}</Text> mins
-                    </Text>
-                    
-                    <View style={styles.btnRow}>
+                  <View style={styles.settingsPanel}>
+                    {/* Brutalist Mode Selector Segment */}
+                    <View style={styles.modeSelector}>
                       <Pressable
-                        style={[styles.adjustBtn, schedule.interval_minutes <= 15 ? styles.adjustBtnDisabled : null]}
-                        onPress={() => handleAdjustInterval(schedule, -15)}
-                        disabled={isUpdating || schedule.interval_minutes <= 15}
-                      >
-                        <Text style={styles.adjustBtnText}>-15m</Text>
-                      </Pressable>
-                      <Pressable
-                        style={styles.adjustBtn}
-                        onPress={() => handleAdjustInterval(schedule, 15)}
+                        style={[styles.modeBtn, mode === 'interval' && styles.modeBtnActive]}
+                        onPress={() => handleModeChange(schedule.crawler_name, 'interval')}
                         disabled={isUpdating}
                       >
-                        <Text style={styles.adjustBtnText}>+15m</Text>
+                        <Text style={[styles.modeBtnText, mode === 'interval' && styles.modeBtnActiveText]}>
+                          INTERVAL
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        style={[styles.modeBtn, mode === 'daily' && styles.modeBtnActive]}
+                        onPress={() => handleModeChange(schedule.crawler_name, 'daily')}
+                        disabled={isUpdating}
+                      >
+                        <Text style={[styles.modeBtnText, mode === 'daily' && styles.modeBtnActiveText]}>
+                          DAILY
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        style={[styles.modeBtn, mode === 'date_time' && styles.modeBtnActive]}
+                        onPress={() => handleModeChange(schedule.crawler_name, 'date_time')}
+                        disabled={isUpdating}
+                      >
+                        <Text style={[styles.modeBtnText, mode === 'date_time' && styles.modeBtnActiveText]}>
+                          ONCE
+                        </Text>
                       </Pressable>
                     </View>
+
+                    {/* Mode Specific Controls */}
+                    {mode === 'interval' && (
+                      <View style={styles.intervalControls}>
+                        <Text style={styles.controlLabel}>
+                          INTERVAL:{' '}
+                          <Text style={styles.highlightText}>{schedule.interval_minutes}</Text> MINS
+                        </Text>
+                        
+                        <View style={styles.btnRow}>
+                          <Pressable
+                            style={[styles.adjustBtn, schedule.interval_minutes <= 15 ? styles.adjustBtnDisabled : null]}
+                            onPress={() => handleAdjustInterval(schedule, -15)}
+                            disabled={isUpdating || schedule.interval_minutes <= 15}
+                          >
+                            <Text style={styles.adjustBtnText}>-15M</Text>
+                          </Pressable>
+                          <Pressable
+                            style={styles.adjustBtn}
+                            onPress={() => handleAdjustInterval(schedule, 15)}
+                            disabled={isUpdating}
+                          >
+                            <Text style={styles.adjustBtnText}>+15M</Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    )}
+
+                    {mode === 'daily' && (
+                      <View style={styles.scheduleRow}>
+                        <Text style={styles.controlLabel}>
+                          DAILY AT:{' '}
+                          <Text style={styles.highlightText}>
+                            {(() => {
+                              const { hour, minute } = decodeDailyTime(schedule.interval_minutes);
+                              return formatDailyTime(hour, minute);
+                            })()}
+                          </Text>
+                        </Text>
+
+                        {Platform.OS === 'web' ? (
+                          <input
+                            type="time"
+                            style={webStyles.inputTime}
+                            defaultValue={(() => {
+                              const { hour, minute } = decodeDailyTime(schedule.interval_minutes);
+                              return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+                            })()}
+                            onChange={(e) => handleWebTimeChange(schedule.crawler_name, e.target.value)}
+                            disabled={isUpdating}
+                          />
+                        ) : (
+                          <Pressable
+                            style={styles.adjustBtn}
+                            onPress={() => openNativePicker(schedule.crawler_name, 'daily')}
+                            disabled={isUpdating}
+                          >
+                            <Text style={styles.adjustBtnText}>SET TIME</Text>
+                          </Pressable>
+                        )}
+                      </View>
+                    )}
+
+                    {mode === 'date_time' && (
+                      <View style={styles.scheduleRow}>
+                        <View style={styles.labelCol}>
+                          <Text style={styles.controlLabel}>ONCE AT:</Text>
+                          <Text style={styles.dateLabelText}>
+                            {schedule.interval_minutes >= 1000000
+                              ? formatDateTime(decodeDateTime(schedule.interval_minutes))
+                              : 'NOT SET'}
+                          </Text>
+                        </View>
+
+                        {Platform.OS === 'web' ? (
+                          <input
+                            type="datetime-local"
+                            style={webStyles.inputDateTime}
+                            defaultValue={(() => {
+                              if (schedule.interval_minutes < 1000000) return '';
+                              const d = decodeDateTime(schedule.interval_minutes);
+                              // Format as YYYY-MM-DDTHH:MM
+                              const y = d.getFullYear();
+                              const m = (d.getMonth() + 1).toString().padStart(2, '0');
+                              const day = d.getDate().toString().padStart(2, '0');
+                              const h = d.getHours().toString().padStart(2, '0');
+                              const min = d.getMinutes().toString().padStart(2, '0');
+                              return `${y}-${m}-${day}T${h}:${min}`;
+                            })()}
+                            onChange={(e) => handleWebDateChange(schedule.crawler_name, e.target.value)}
+                            disabled={isUpdating}
+                          />
+                        ) : (
+                          <Pressable
+                            style={styles.adjustBtn}
+                            onPress={() => openNativePicker(schedule.crawler_name, 'once')}
+                            disabled={isUpdating}
+                          >
+                            <Text style={styles.adjustBtnText}>SET DATE</Text>
+                          </Pressable>
+                        )}
+                      </View>
+                    )}
                   </View>
                 )}
               </View>
             );
           })}
+
+          {/* Native Dialog Pickers */}
+          {Platform.OS !== 'web' && activePickerCrawler && DateTimePicker && (
+            <DateTimePicker
+              value={pickerValue}
+              mode={pickerMode}
+              is24Hour={true}
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={handleNativePickerChange}
+              minimumDate={new Date()}
+            />
+          )}
         </ScrollView>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
+
+// Web-specific styles mapping to HTML inline styles
+const webStyles = {
+  inputTime: {
+    fontFamily: 'SpaceMono',
+    fontSize: '13px',
+    border: '1px solid #1c1b1b',
+    backgroundColor: '#f0eded',
+    padding: '6px 10px',
+    borderRadius: 0,
+    outline: 'none',
+    color: '#1c1b1b',
+  },
+  inputDateTime: {
+    fontFamily: 'SpaceMono',
+    fontSize: '12px',
+    border: '1px solid #1c1b1b',
+    backgroundColor: '#f0eded',
+    padding: '6px 8px',
+    borderRadius: 0,
+    outline: 'none',
+    color: '#1c1b1b',
+  },
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121214',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1E1E24',
-    gap: 12,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#1E1E24',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#2A2A32',
-  },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
+    backgroundColor: '#fcf9f8',
   },
   centerContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#fcf9f8',
   },
   scrollContent: {
     padding: 20,
     gap: 16,
   },
   sectionDesc: {
-    color: '#8E8E93',
+    color: '#926f6a',
     fontSize: 13,
     lineHeight: 18,
+    fontFamily: 'SpaceMono',
     marginBottom: 8,
   },
   scheduleCard: {
-    backgroundColor: '#1E1E24',
-    borderRadius: 16,
+    backgroundColor: '#fcf9f8',
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#2A2A32',
+    borderColor: '#1c1b1b',
     padding: 16,
   },
   cardHeader: {
@@ -218,14 +523,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardTitle: {
-    color: '#FFFFFF',
-    fontSize: 15,
+    color: '#1c1b1b',
+    fontSize: 14,
     fontWeight: '700',
+    fontFamily: 'SpaceMono',
     marginBottom: 4,
   },
   cardDesc: {
-    color: '#8E8E93',
+    color: '#926f6a',
     fontSize: 11,
+    fontFamily: 'SpaceMono',
     lineHeight: 15,
   },
   actionArea: {
@@ -234,36 +541,84 @@ const styles = StyleSheet.create({
     width: 50,
   },
   spinner: {
-    height: 31, // Align with switch height
+    height: 31,
+  },
+  settingsPanel: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#1c1b1b',
+    gap: 12,
+  },
+  modeSelector: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: '#1c1b1b',
+    backgroundColor: '#f0eded',
+  },
+  modeBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRightWidth: 1,
+    borderRightColor: '#1c1b1b',
+  },
+  modeBtnActive: {
+    backgroundColor: '#bc000a',
+  },
+  modeBtnText: {
+    fontFamily: 'SpaceMono',
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#1c1b1b',
+  },
+  modeBtnActiveText: {
+    color: '#ffffff',
   },
   intervalControls: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#2A2A32',
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: 4,
   },
-  intervalText: {
-    color: '#E5E5EA',
+  scheduleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 8,
+  },
+  labelCol: {
+    flexDirection: 'column',
+    flex: 1,
+  },
+  controlLabel: {
+    color: '#1c1b1b',
     fontSize: 13,
-    fontWeight: '500',
-  },
-  intervalValue: {
-    color: '#FF9500', // Orange interval text
     fontWeight: '700',
-    fontSize: 15,
+    fontFamily: 'SpaceMono',
+  },
+  highlightText: {
+    color: '#bc000a',
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
+  },
+  dateLabelText: {
+    color: '#bc000a',
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
+    marginTop: 2,
   },
   btnRow: {
     flexDirection: 'row',
     gap: 8,
   },
   adjustBtn: {
-    backgroundColor: '#2A2A32',
+    backgroundColor: '#f0eded',
     borderWidth: 1,
-    borderColor: '#3A3A42',
-    borderRadius: 8,
+    borderColor: '#1c1b1b',
+    borderRadius: 0,
     paddingHorizontal: 12,
     paddingVertical: 6,
     minWidth: 55,
@@ -273,8 +628,9 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
   adjustBtnText: {
-    color: '#FFFFFF',
+    color: '#1c1b1b',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
 });

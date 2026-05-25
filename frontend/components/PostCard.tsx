@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, Linking } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Linking, Image } from 'react-native';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 
 export interface PostType {
@@ -26,6 +26,40 @@ export interface PostType {
     homepage?: string;
   };
 }
+
+const getMediaUrl = (post: PostType) => {
+  // 1. Direct thumbnail_url if available
+  if (post.thumbnail_url && post.thumbnail_url.startsWith('http')) {
+    return post.thumbnail_url;
+  }
+
+  // 2. Check if post.url itself is an image
+  if (post.url && /\.(jpeg|jpg|gif|png|webp|svg)(?:\?.*)?$/i.test(post.url)) {
+    return post.url;
+  }
+
+  // 3. Check Reddit raw_data thumbnail
+  if (post.raw_data && typeof post.raw_data === 'object') {
+    const raw: any = post.raw_data;
+    if (raw.thumbnail_url && typeof raw.thumbnail_url === 'string' && raw.thumbnail_url.startsWith('http')) {
+      return raw.thumbnail_url;
+    }
+    if (raw.thumbnail && typeof raw.thumbnail === 'string' && raw.thumbnail.startsWith('http')) {
+      return raw.thumbnail;
+    }
+  }
+
+  // 4. Try to find an image URL in the content body
+  if (post.content) {
+    const imgRegex = /https?:\/\/[^\s"'<>]+\.(?:jpeg|jpg|gif|png|webp|svg)(?:\?[^\s"'<>]+)?/i;
+    const match = post.content.match(imgRegex);
+    if (match) {
+      return match[0];
+    }
+  }
+
+  return null;
+};
 
 interface PostCardProps {
   post: PostType;
@@ -61,22 +95,22 @@ export const PostCard: React.FC<PostCardProps> = ({
     switch (sourceType) {
       case 'reddit':
         return {
-          accentColor: '#FF4500', // Orange
+          accentColor: '#aa352b', // Secondary (Alert Red-Brown)
           icon: 'reddit',
-          bgAccent: 'rgba(255, 69, 0, 0.08)',
+          bgAccent: '#f0eded',
         };
       case 'github':
         return {
-          accentColor: '#6e5494', // Purple
+          accentColor: '#00647f', // Tertiary (Deep Blue)
           icon: 'github',
-          bgAccent: 'rgba(110, 84, 148, 0.08)',
+          bgAccent: '#f0eded',
         };
       case 'blog':
       default:
         return {
-          accentColor: '#FF2D55', // Coral/Red
+          accentColor: '#bc000a', // Primary (Alert Red)
           icon: 'rss',
-          bgAccent: 'rgba(255, 45, 85, 0.08)',
+          bgAccent: '#f0eded',
         };
     }
   };
@@ -87,7 +121,7 @@ export const PostCard: React.FC<PostCardProps> = ({
     <View style={styles.card}>
       {/* Top Header Row */}
       <View style={styles.header}>
-        <View style={[styles.sourceBadge, { backgroundColor: theme.bgAccent }]}>
+        <View style={styles.sourceBadge}>
           <FontAwesome5 name={theme.icon} size={13} color={theme.accentColor} />
           <Text style={[styles.sourceText, { color: theme.accentColor }]}>
             {sourceName}
@@ -102,6 +136,17 @@ export const PostCard: React.FC<PostCardProps> = ({
           {post.title}
         </Text>
       </Pressable>
+
+      {/* Media Preview if present */}
+      {getMediaUrl(post) ? (
+        <View style={styles.mediaContainer}>
+          <Image
+            source={{ uri: getMediaUrl(post)! }}
+            style={styles.mediaImage}
+            resizeMode="cover"
+          />
+        </View>
+      ) : null}
 
       {/* Snippet / Content Preview */}
       {post.content ? (
@@ -131,14 +176,14 @@ export const PostCard: React.FC<PostCardProps> = ({
           style={styles.actionButton}
           onPress={() => Linking.openURL(post.url)}
         >
-          <Ionicons name="open-outline" size={18} color="#9BA1A6" />
+          <Ionicons name="open-outline" size={18} color="#1c1b1b" />
           <Text style={styles.actionText}>Read Original</Text>
         </Pressable>
 
         <View style={styles.rightActions}>
           {/* AI Summarize Button */}
           <Pressable
-            style={[styles.summarizeBtn, { borderColor: theme.accentColor }]}
+            style={styles.summarizeBtn}
             onPress={() => onSummarize(post.id)}
           >
             <Ionicons name="sparkles" size={14} color={theme.accentColor} />
@@ -155,7 +200,7 @@ export const PostCard: React.FC<PostCardProps> = ({
             <Ionicons
               name={post.is_bookmarked ? 'bookmark' : 'bookmark-outline'}
               size={20}
-              color={post.is_bookmarked ? '#FFCC00' : '#9BA1A6'}
+              color={post.is_bookmarked ? '#bc000a' : '#1c1b1b'}
             />
           </Pressable>
         </View>
@@ -166,17 +211,12 @@ export const PostCard: React.FC<PostCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#1E1E24',
-    borderRadius: 16,
+    backgroundColor: '#fcf9f8',
+    borderRadius: 0,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#2A2A32',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 4,
+    borderColor: '#1c1b1b',
   },
   header: {
     flexDirection: 'row',
@@ -189,29 +229,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 0,
+    borderWidth: 1,
+    borderColor: '#1c1b1b',
+    backgroundColor: '#f0eded',
     gap: 6,
   },
   sourceText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
   dateText: {
-    color: '#8E8E93',
+    color: '#1c1b1b',
     fontSize: 11,
+    fontFamily: 'SpaceMono',
   },
   title: {
-    color: '#FFFFFF',
+    color: '#1c1b1b',
     fontSize: 16,
     fontWeight: '700',
     lineHeight: 22,
     marginBottom: 8,
+    fontFamily: 'SpaceMono',
   },
   contentPreview: {
-    color: '#D1D1D6',
+    color: '#1c1b1b',
     fontSize: 13,
     lineHeight: 18,
     marginBottom: 12,
+    fontFamily: 'SpaceMono',
   },
   tagsContainer: {
     flexDirection: 'row',
@@ -220,15 +267,18 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   categoryBadge: {
-    backgroundColor: '#2C2C35',
+    backgroundColor: '#f0eded',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 0,
+    borderWidth: 1,
+    borderColor: '#1c1b1b',
   },
   categoryText: {
-    color: '#E5E5EA',
+    color: '#bc000a',
     fontSize: 10,
     fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
   tagBadge: {
     backgroundColor: 'transparent',
@@ -236,15 +286,16 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   tagText: {
-    color: '#8E8E93',
+    color: '#926f6a',
     fontSize: 11,
+    fontFamily: 'SpaceMono',
   },
   actionBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#2A2A32',
+    borderTopColor: '#1c1b1b',
     paddingTop: 12,
   },
   actionButton: {
@@ -253,9 +304,10 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   actionText: {
-    color: '#9BA1A6',
+    color: '#1c1b1b',
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
   rightActions: {
     flexDirection: 'row',
@@ -267,15 +319,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 8,
+    borderRadius: 0,
     borderWidth: 1,
+    borderColor: '#1c1b1b',
+    backgroundColor: '#f0eded',
     gap: 4,
   },
   summarizeText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
   bookmarkBtn: {
     padding: 2,
+  },
+  mediaContainer: {
+    width: '100%',
+    height: 160,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#1c1b1b',
+    overflow: 'hidden',
+  },
+  mediaImage: {
+    width: '100%',
+    height: '100%',
   },
 });

@@ -11,19 +11,56 @@ import {
 } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { PostType } from './PostCard';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface InshortsCardProps {
   post: PostType;
   containerHeight: number;
   onToggleBookmark: (postId: string, isBookmarked: boolean) => void;
   onSummarize: (postId: string) => Promise<string | null>;
+  isViewed?: boolean;
 }
+
+const getMediaUrl = (post: PostType) => {
+  // 1. Direct thumbnail_url if available
+  if (post.thumbnail_url && post.thumbnail_url.startsWith('http')) {
+    return post.thumbnail_url;
+  }
+
+  // 2. Check if post.url itself is an image
+  if (post.url && /\.(jpeg|jpg|gif|png|webp|svg)(?:\?.*)?$/i.test(post.url)) {
+    return post.url;
+  }
+
+  // 3. Check Reddit raw_data thumbnail
+  if (post.raw_data && typeof post.raw_data === 'object') {
+    const raw: any = post.raw_data;
+    if (raw.thumbnail_url && typeof raw.thumbnail_url === 'string' && raw.thumbnail_url.startsWith('http')) {
+      return raw.thumbnail_url;
+    }
+    if (raw.thumbnail && typeof raw.thumbnail === 'string' && raw.thumbnail.startsWith('http')) {
+      return raw.thumbnail;
+    }
+  }
+
+  // 4. Try to find an image URL in the content body
+  if (post.content) {
+    const imgRegex = /https?:\/\/[^\s"'<>]+\.(?:jpeg|jpg|gif|png|webp|svg)(?:\?[^\s"'<>]+)?/i;
+    const match = post.content.match(imgRegex);
+    if (match) {
+      return match[0];
+    }
+  }
+
+  return null;
+};
 
 export const InshortsCard: React.FC<InshortsCardProps> = ({
   post,
   containerHeight,
   onToggleBookmark,
   onSummarize,
+  isViewed = false,
 }) => {
   const [showSummary, setShowSummary] = useState(false);
   const [summaryText, setSummaryText] = useState<string | null>(post.ai_summary || null);
@@ -61,22 +98,22 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
     switch (sourceType) {
       case 'reddit':
         return {
-          accentColor: '#FF4500',
+          accentColor: '#aa352b',
           icon: 'reddit',
-          placeholderBg: '#2D1B15',
+          placeholderBg: '#f0eded',
         };
       case 'github':
         return {
-          accentColor: '#58A6FF',
+          accentColor: '#00647f',
           icon: 'github',
-          placeholderBg: '#1A1E2C',
+          placeholderBg: '#f0eded',
         };
       case 'blog':
       default:
         return {
-          accentColor: '#FF2D55',
+          accentColor: '#bc000a',
           icon: 'rss',
-          placeholderBg: '#2A1A22',
+          placeholderBg: '#f0eded',
         };
     }
   };
@@ -112,14 +149,16 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
   const footerHeight = 56;
   const contentHeight = containerHeight - headerHeight - footerHeight;
 
+  const mediaUrl = getMediaUrl(post);
+
   return (
     <View style={[styles.card, { height: containerHeight }]}>
       {/* Header Visual Section */}
       <View style={[styles.headerContainer, { height: headerHeight }]}>
-        {post.thumbnail_url ? (
+        {mediaUrl ? (
           <>
             <Image
-              source={{ uri: post.thumbnail_url }}
+              source={{ uri: mediaUrl }}
               style={styles.headerImage}
               resizeMode="cover"
             />
@@ -138,6 +177,11 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
             <Text style={[styles.sourceText, { color: theme.accentColor }]}>{sourceName}</Text>
           </View>
           <Text style={styles.dateText}>{formatDate(post.published_at)}</Text>
+          {isViewed && (
+            <View style={styles.viewedBadge}>
+              <Text style={styles.viewedText}>READ</Text>
+            </View>
+          )}
         </View>
 
         {/* Top Floating Actions */}
@@ -149,7 +193,7 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
             <Ionicons
               name={post.is_bookmarked ? 'bookmark' : 'bookmark-outline'}
               size={20}
-              color={post.is_bookmarked ? '#FFCC00' : '#FFFFFF'}
+              color={post.is_bookmarked ? '#bc000a' : '#1c1b1b'}
             />
           </Pressable>
         </View>
@@ -158,7 +202,7 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
       {/* Main Body Section */}
       <View style={[styles.bodyContainer, { height: contentHeight }]}>
         {/* Post Title */}
-        <Text style={styles.title} numberOfLines={2}>
+        <Text style={[styles.title, isViewed && styles.titleViewed]} numberOfLines={2}>
           {post.title}
         </Text>
 
@@ -173,30 +217,18 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
           {showSummary ? (
             <View style={styles.summaryArea}>
               <View style={styles.summaryTitleRow}>
-                <Ionicons name="sparkles" size={14} color="#9F62FF" />
+                <Ionicons name="sparkles" size={14} color="#bc000a" />
                 <Text style={styles.summaryTitle}>AI Bullet Summary</Text>
               </View>
               {isLoadingSummary ? (
                 <View style={styles.loaderContainer}>
-                  <ActivityIndicator size="small" color="#9F62FF" />
+                  <ActivityIndicator size="small" color="#bc000a" />
                   <Text style={styles.loaderText}>Llama 3 summarizing...</Text>
                 </View>
               ) : (
                 <View style={styles.bulletsContainer}>
                   {summaryText ? (
-                    summaryText.split('\n').map((line, idx) => {
-                      const cleanLine = line.trim();
-                      if (!cleanLine) return null;
-                      const isBullet = cleanLine.startsWith('-') || cleanLine.startsWith('*') || cleanLine.startsWith('•');
-                      const text = isBullet ? cleanLine.substring(1).trim() : cleanLine;
-
-                      return (
-                        <View key={idx} style={styles.bulletRow}>
-                          <Ionicons name="sparkles-outline" size={10} color="#9F62FF" style={styles.bulletIcon} />
-                          <Text style={styles.summaryText}>{text}</Text>
-                        </View>
-                      );
-                    })
+                    <MarkdownRenderer content={summaryText} />
                   ) : (
                     <Text style={styles.summaryText}>No summary available.</Text>
                   )}
@@ -208,11 +240,11 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
               {post.sources?.type === 'github' && post.raw_data && (
                 <View style={styles.githubStatsRow}>
                   <View style={styles.gitStat}>
-                    <Ionicons name="star" size={14} color="#FFCC00" />
+                    <Ionicons name="star" size={14} color="#bc000a" />
                     <Text style={styles.gitStatText}>{(post.raw_data.stars ?? 0).toLocaleString()} stars</Text>
                   </View>
                   <View style={styles.gitStat}>
-                    <FontAwesome5 name="code-branch" size={12} color="#8E8E93" />
+                    <FontAwesome5 name="code-branch" size={12} color="#1c1b1b" />
                     <Text style={styles.gitStatText}>{(post.raw_data.forks ?? 0).toLocaleString()} forks</Text>
                   </View>
                   <View style={styles.gitStat}>
@@ -232,16 +264,16 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
         <Pressable
           style={[
             styles.actionButton,
-            showSummary ? styles.actionActive : { borderColor: theme.accentColor },
+            showSummary ? styles.actionActive : { borderColor: '#1c1b1b' },
           ]}
           onPress={handleToggleSummary}
         >
           <Ionicons
             name="sparkles"
             size={15}
-            color={showSummary ? '#FFFFFF' : theme.accentColor}
+            color={showSummary ? '#FFFFFF' : '#1c1b1b'}
           />
-          <Text style={[styles.actionBtnText, showSummary ? { color: '#FFFFFF' } : { color: theme.accentColor }]}>
+          <Text style={[styles.actionBtnText, showSummary ? { color: '#FFFFFF' } : { color: '#1c1b1b' }]}>
             {showSummary ? 'Show Original' : 'AI Aggregated takeaways'}
           </Text>
         </Pressable>
@@ -256,7 +288,7 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
           <Text style={styles.footerText} numberOfLines={1}>
             read more at <Text style={styles.footerDomain}>{getDomain(post.url)}</Text>
           </Text>
-          <Ionicons name="chevron-forward-outline" size={14} color="#9F62FF" />
+          <Ionicons name="chevron-forward-outline" size={14} color="#bc000a" />
         </View>
       </Pressable>
     </View>
@@ -265,14 +297,14 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#000000',
+    backgroundColor: '#fcf9f8',
     width: '100%',
     overflow: 'hidden',
   },
   headerContainer: {
     width: '100%',
     position: 'relative',
-    backgroundColor: '#16161A',
+    backgroundColor: '#f0eded',
   },
   headerImage: {
     width: '100%',
@@ -280,7 +312,7 @@ const styles = StyleSheet.create({
   },
   imageOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
   },
   headerPlaceholder: {
     width: '100%',
@@ -290,8 +322,8 @@ const styles = StyleSheet.create({
   },
   badgeOverlay: {
     position: 'absolute',
-    left: 20,
-    bottom: 16,
+    left: 16,
+    bottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -299,24 +331,24 @@ const styles = StyleSheet.create({
   sourceBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 0,
     borderWidth: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderColor: '#1c1b1b',
+    backgroundColor: '#fcf9f8',
     gap: 6,
   },
   sourceText: {
     fontSize: 11,
     fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
   dateText: {
-    color: '#E5E5EA',
+    color: '#1c1b1b',
     fontSize: 11,
     fontWeight: '500',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    fontFamily: 'SpaceMono',
   },
   floatingActions: {
     position: 'absolute',
@@ -326,32 +358,34 @@ const styles = StyleSheet.create({
   floatingBtn: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    borderRadius: 0,
+    backgroundColor: '#fcf9f8',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#3A3A42',
+    borderColor: '#1c1b1b',
   },
   bodyContainer: {
     padding: 20,
-    backgroundColor: '#121214',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    marginTop: -10,
+    backgroundColor: '#fcf9f8',
+    borderRadius: 0,
+    marginTop: 0,
+    borderWidth: 1,
+    borderColor: '#1c1b1b',
     zIndex: 2,
     flexDirection: 'column',
   },
   title: {
-    color: '#FFFFFF',
+    color: '#1c1b1b',
     fontSize: 18,
     fontWeight: '800',
     lineHeight: 24,
     marginBottom: 10,
+    fontFamily: 'SpaceMono',
   },
   divider: {
     height: 1,
-    backgroundColor: '#2A2A32',
+    backgroundColor: '#1c1b1b',
     marginBottom: 14,
   },
   scrollArea: {
@@ -362,19 +396,20 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   bodyText: {
-    color: '#E5E5EA',
+    color: '#1c1b1b',
     fontSize: 14,
     lineHeight: 22,
+    fontFamily: 'SpaceMono',
   },
   githubStatsRow: {
     flexDirection: 'row',
     gap: 12,
     marginBottom: 14,
-    backgroundColor: '#1E1E24',
+    backgroundColor: '#f0eded',
     padding: 8,
-    borderRadius: 8,
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#2A2A32',
+    borderColor: '#1c1b1b',
   },
   gitStat: {
     flexDirection: 'row',
@@ -382,9 +417,10 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   gitStatText: {
-    color: '#8E8E93',
+    color: '#1c1b1b',
     fontSize: 11,
     fontWeight: '600',
+    fontFamily: 'SpaceMono',
   },
   summaryArea: {
     gap: 12,
@@ -396,10 +432,11 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   summaryTitle: {
-    color: '#9F62FF',
+    color: '#bc000a',
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
+    fontFamily: 'SpaceMono',
   },
   bulletsContainer: {
     gap: 10,
@@ -413,10 +450,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   summaryText: {
-    color: '#FFFFFF',
+    color: '#1c1b1b',
     fontSize: 14,
     lineHeight: 21,
     flex: 1,
+    fontFamily: 'SpaceMono',
   },
   loaderContainer: {
     paddingVertical: 30,
@@ -425,8 +463,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   loaderText: {
-    color: '#8E8E93',
+    color: '#1c1b1b',
     fontSize: 12,
+    fontFamily: 'SpaceMono',
   },
   actionButton: {
     flexDirection: 'row',
@@ -434,23 +473,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     height: 44,
-    borderRadius: 10,
+    borderRadius: 0,
     borderWidth: 1,
     width: '100%',
     alignSelf: 'center',
   },
   actionActive: {
-    backgroundColor: '#9F62FF',
-    borderColor: '#9F62FF',
+    backgroundColor: '#bc000a',
+    borderColor: '#bc000a',
   },
   actionBtnText: {
     fontSize: 13,
     fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
   footerContainer: {
-    backgroundColor: '#1E1E24',
+    backgroundColor: '#f0eded',
     borderTopWidth: 1,
-    borderTopColor: '#2A2A32',
+    borderTopColor: '#1c1b1b',
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
@@ -461,12 +501,31 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   footerText: {
-    color: '#8E8E93',
+    color: '#1c1b1b',
     fontSize: 12,
     fontWeight: '500',
+    fontFamily: 'SpaceMono',
   },
   footerDomain: {
-    color: '#9F62FF',
+    color: '#bc000a',
     fontWeight: '700',
+    fontFamily: 'SpaceMono',
+  },
+  viewedBadge: {
+    backgroundColor: '#926f6a',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: '#1c1b1b',
+    borderRadius: 0,
+  },
+  viewedText: {
+    fontFamily: 'SpaceMono',
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  titleViewed: {
+    color: '#926f6a',
   },
 });

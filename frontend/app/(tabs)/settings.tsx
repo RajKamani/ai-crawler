@@ -24,18 +24,18 @@ const SettingsMenuItem: React.FC<SettingsMenuItemProps> = ({
   return (
     <Link href={href} asChild>
       <Pressable style={styles.menuItem}>
-        <View style={[styles.iconContainer, { backgroundColor: `${iconColor}15` }]}>
+        <View style={styles.iconContainer}>
           {isFontAwesome ? (
-            <FontAwesome5 name={icon} size={18} color={iconColor} />
+            <FontAwesome5 name={icon} size={16} color="#1c1b1b" />
           ) : (
-            <Ionicons name={icon as any} size={20} color={iconColor} />
+            <Ionicons name={icon as any} size={18} color="#1c1b1b" />
           )}
         </View>
         <View style={styles.textContainer}>
-          <Text style={styles.menuTitle}>{title}</Text>
+          <Text style={styles.menuTitle}>{title.toUpperCase()}</Text>
           <Text style={styles.menuSubtitle}>{subtitle}</Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color="#48484A" />
+        <Ionicons name="chevron-forward" size={18} color="#1c1b1b" />
       </Pressable>
     </Link>
   );
@@ -46,18 +46,18 @@ export default function SettingsHubScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Settings</Text>
-        <Text style={styles.headerSubtitle}>Configure Feed Sources & Schedules</Text>
+        <Text style={styles.headerTitle}>SETTINGS</Text>
+        <Text style={styles.headerSubtitle}>CONFIGURE FEED SOURCES & SCHEDULES</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Profile Card / Static info */}
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <Ionicons name="person" size={24} color="#FFFFFF" />
+            <Ionicons name="person" size={24} color="#fcf9f8" />
           </View>
           <View style={styles.profileText}>
-            <Text style={styles.profileName}>Developer Sandbox</Text>
+            <Text style={styles.profileName}>DEVELOPER SANDBOX</Text>
             <Text style={styles.profileEmail}>mock-developer@local.host</Text>
           </View>
         </View>
@@ -103,7 +103,7 @@ export default function SettingsHubScreen() {
 
         {/* Info Card */}
         <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>Crawler Core Engine v1.0.0</Text>
+          <Text style={styles.infoTitle}>CRAWLER CORE ENGINE V1.0.0</Text>
           <Text style={styles.infoBody}>
             This application utilizes Groq Llama 3.3 for summarizing. Feeds are crawled asynchronously via FastAPI background tasks and stored in Supabase PostgreSQL database.
           </Text>
@@ -116,23 +116,26 @@ export default function SettingsHubScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121214',
+    backgroundColor: '#fcf9f8',
   },
   header: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E1E24',
+    borderBottomColor: '#1c1b1b',
+    backgroundColor: '#fcf9f8',
   },
   headerTitle: {
-    color: '#FFFFFF',
+    color: '#1c1b1b',
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
   headerSubtitle: {
-    color: '#9E9E9E',
+    color: '#bc000a',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
     marginTop: 2,
   },
   scrollContent: {
@@ -143,18 +146,18 @@ const styles = StyleSheet.create({
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E1E24',
-    borderRadius: 16,
+    backgroundColor: '#fcf9f8',
+    borderRadius: 0,
     padding: 16,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#2A2A32',
+    borderColor: '#1c1b1b',
   },
   avatar: {
     width: 48,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: '#2A2A32',
+    borderRadius: 0,
+    backgroundColor: '#1c1b1b',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
@@ -163,28 +166,31 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   profileName: {
-    color: '#FFFFFF',
+    color: '#1c1b1b',
     fontSize: 16,
     fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
   profileEmail: {
-    color: '#8E8E93',
+    color: '#926f6a',
     fontSize: 12,
+    fontFamily: 'SpaceMono',
     marginTop: 2,
   },
   sectionTitle: {
-    color: '#8E8E93',
+    color: '#bc000a',
     fontSize: 13,
     fontWeight: '700',
+    fontFamily: 'SpaceMono',
     textTransform: 'uppercase',
     marginBottom: 10,
     marginLeft: 4,
   },
   menuGroup: {
-    backgroundColor: '#1E1E24',
-    borderRadius: 16,
+    backgroundColor: '#fcf9f8',
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#2A2A32',
+    borderColor: '#1c1b1b',
     overflow: 'hidden',
     marginBottom: 24,
   },
@@ -193,12 +199,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#2A2A32',
+    borderBottomColor: '#1c1b1b',
   },
   iconContainer: {
     width: 38,
     height: 38,
-    borderRadius: 10,
+    borderRadius: 0,
+    borderWidth: 1,
+    borderColor: '#1c1b1b',
+    backgroundColor: '#f0eded',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -207,32 +216,36 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuTitle: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
+    color: '#1c1b1b',
+    fontSize: 14,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
   menuSubtitle: {
-    color: '#8E8E93',
+    color: '#926f6a',
     fontSize: 11,
+    fontFamily: 'SpaceMono',
     marginTop: 2,
   },
   infoCard: {
-    backgroundColor: '#16161A',
-    borderRadius: 12,
+    backgroundColor: '#f0eded',
+    borderRadius: 0,
     padding: 16,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: '#232329',
+    borderColor: '#1c1b1b',
   },
   infoTitle: {
-    color: '#FFFFFF',
+    color: '#bc000a',
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
     marginBottom: 6,
   },
   infoBody: {
-    color: '#8E8E93',
+    color: '#1c1b1b',
     fontSize: 11,
+    fontFamily: 'SpaceMono',
     lineHeight: 16,
   },
 });

@@ -82,6 +82,15 @@ class BlogCrawler(BaseCrawler):
                 author = entry.get('author', source_name)
                 published_time = entry.get('published_parsed') or entry.get('updated_parsed')
 
+                # Try to extract image URL for thumbnail
+                raw_html = ""
+                if 'content' in entry and len(entry.content) > 0:
+                    raw_html = entry.content[0].get('value', '')
+                if not raw_html:
+                    raw_html = entry.get('summary', '') or entry.get('description', '')
+                
+                thumbnail_url = self._extract_image(entry, raw_html)
+
                 await self.save_post(
                     title=title,
                     content=content,
@@ -91,11 +100,46 @@ class BlogCrawler(BaseCrawler):
                     source_id=source_id,
                     raw_data={
                         "summary_detail": entry.get('summary', ''),
-                        "id": entry.get('id', '')
+                        "id": entry.get('id', ''),
+                        "thumbnail_url": thumbnail_url
                     }
                 )
         except Exception as e:
             logger.error(f"Error parsing feed {feed_url}: {e}")
+
+    def _extract_image(self, entry, raw_html: str) -> Optional[str]:
+        """Extract image URL from enclosures, media tags, or HTML content"""
+        from typing import Optional
+        # 1. Try enclosures
+        enclosures = entry.get('enclosures', [])
+        for enc in enclosures:
+            if enc.get('type', '').startswith('image/') and enc.get('href'):
+                return enc.get('href')
+
+        # 2. Try media content
+        media = entry.get('media_content', [])
+        for m in media:
+            if m.get('url'):
+                return m.get('url')
+
+        # 3. Try media thumbnail
+        thumbs = entry.get('media_thumbnail', [])
+        for t in thumbs:
+            if t.get('url'):
+                return t.get('url')
+
+        # 4. Try HTML parser search
+        if raw_html:
+            try:
+                soup = BeautifulSoup(raw_html, 'html.parser')
+                img = soup.find('img')
+                if img and img.get('src'):
+                    src = img.get('src')
+                    if src.startswith('http'):
+                        return src
+            except:
+                pass
+        return None
 
     async def _get_or_create_source(self, blog_name: str, blog_url: str) -> str:
         """Find existing source or create new one for user blog"""

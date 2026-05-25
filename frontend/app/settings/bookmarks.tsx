@@ -5,18 +5,14 @@ import {
   Text,
   FlatList,
   ActivityIndicator,
-  Pressable,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { API_BASE_URL, AUTH_HEADER } from '@/constants/Config';
 import { PostCard, PostType } from '@/components/PostCard';
 import { GitHubRepoCard } from '@/components/GitHubRepoCard';
 import { SummarizeSheet } from '@/components/SummarizeSheet';
 
 export default function BookmarksScreen() {
-  const router = useRouter();
   const [posts, setPosts] = useState<PostType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -123,15 +119,7 @@ export default function BookmarksScreen() {
   }, [posts]);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-        </Pressable>
-        <Text style={styles.headerTitle}>Saved Bookmarks</Text>
-      </View>
-
+    <View style={styles.container}>
       {/* List */}
       <FlatList
         data={posts}
@@ -142,11 +130,11 @@ export default function BookmarksScreen() {
         onRefresh={handleRefresh}
         ListEmptyComponent={
           isLoading ? (
-            <ActivityIndicator size="large" color="#FFCC00" style={{ marginTop: 40 }} />
+            <ActivityIndicator size="large" color="#bc000a" style={{ marginTop: 40 }} />
           ) : (
             <View style={styles.emptyContainer}>
-              <Ionicons name="bookmark-outline" size={48} color="#3A3A42" />
-              <Text style={styles.emptyText}>No saved bookmarks yet.</Text>
+              <Ionicons name="bookmark-outline" size={48} color="#1c1b1b" />
+              <Text style={styles.emptyText}>NO SAVED BOOKMARKS YET.</Text>
             </View>
           )
         }
@@ -160,38 +148,14 @@ export default function BookmarksScreen() {
         summary={activeSummary}
         isLoading={isSummaryLoading}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121214',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1E1E24',
-    gap: 12,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#1E1E24',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#2A2A32',
-  },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
+    backgroundColor: '#fcf9f8',
   },
   listContent: {
     paddingHorizontal: 20,
@@ -203,10 +167,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 80,
     gap: 12,
+    backgroundColor: '#fcf9f8',
   },
   emptyText: {
-    color: '#8E8E93',
-    fontSize: 14,
+    color: '#926f6a',
+    fontSize: 13,
     textAlign: 'center',
+    fontFamily: 'SpaceMono',
   },
 });

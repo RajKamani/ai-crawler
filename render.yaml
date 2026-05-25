@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: ai-content-crawler-backend
+    env: python
+    region: oregon # Render region (options: oregon, ohio, frankfurt, singapore)
+    plan: free # Instance plan (options: free, starter)
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.12
+      - key: SUPABASE_URL
+        sync: false # Prompts the user to input this secret during setup
+      - key: SUPABASE_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: REDDIT_CLIENT_ID
+        sync: false
+      - key: REDDIT_CLIENT_SECRET
+        sync: false
+      - key: REDDIT_USER_AGENT
+        value: ai-content-crawler:v1.0.0
+      - key: GITHUB_TOKEN
+        sync: false

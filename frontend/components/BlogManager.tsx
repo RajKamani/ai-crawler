@@ -64,7 +64,7 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
   return (
     <View style={styles.container}>
       {/* Title & Description */}
-      <Text style={styles.sectionTitle}>Add Custom Blog RSS Feed</Text>
+      <Text style={styles.sectionTitle}>ADD CUSTOM BLOG RSS FEED</Text>
       <Text style={styles.description}>
         Add any valid RSS or Atom feed URL to aggregate posts in your personalized feed.
       </Text>
@@ -73,8 +73,8 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
       <View style={styles.form}>
         <TextInput
           style={[styles.input, errorMsg ? styles.inputError : null]}
-          placeholder="Blog Name (e.g. TechCrunch AI)"
-          placeholderTextColor="#8E8E93"
+          placeholder="BLOG NAME (E.G. TECHCRUNCH AI)"
+          placeholderTextColor="#926f6a"
           value={blogName}
           onChangeText={(text) => {
             setBlogName(text);
@@ -84,8 +84,8 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
         />
         <TextInput
           style={[styles.input, errorMsg ? styles.inputError : null]}
-          placeholder="RSS Feed URL"
-          placeholderTextColor="#8E8E93"
+          placeholder="RSS FEED URL"
+          placeholderTextColor="#926f6a"
           value={blogUrl}
           onChangeText={(text) => {
             setBlogUrl(text);
@@ -106,7 +106,7 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
           ) : (
             <>
               <Ionicons name="add" size={20} color="#FFFFFF" />
-              <Text style={styles.submitText}>Add Blog Feed</Text>
+              <Text style={styles.submitText}>ADD BLOG FEED</Text>
             </>
           )}
         </Pressable>
@@ -115,7 +115,7 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
       {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
 
       {/* Suggestions */}
-      <Text style={styles.subTitle}>Quick Add Popular Feeds</Text>
+      <Text style={styles.subTitle}>QUICK ADD POPULAR FEEDS</Text>
       <View style={styles.suggestionsContainer}>
         {suggestions.map((blog, idx) => {
           // Check if already added
@@ -133,9 +133,9 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
               onPress={() => !isAdded && handleAdd(blog.name, blog.url)}
               disabled={isAdded || isSubmitting}
             >
-              <Text style={styles.suggestionText}>{blog.name}</Text>
+              <Text style={styles.suggestionText}>{blog.name.toUpperCase()}</Text>
               {isAdded && (
-                <Ionicons name="checkmark-circle" size={12} color="#8E8E93" />
+                <Ionicons name="checkmark-circle" size={12} color="#926f6a" />
               )}
             </Pressable>
           );
@@ -143,23 +143,23 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
       </View>
 
       {/* Added List */}
-      <Text style={styles.subTitle}>Your Custom Blogs ({blogs.length})</Text>
+      <Text style={styles.subTitle}>YOUR CUSTOM BLOGS ({blogs.length})</Text>
 
       {isLoading ? (
-        <ActivityIndicator size="small" color="#FF2D55" style={{ marginVertical: 20 }} />
+        <ActivityIndicator size="small" color="#bc000a" style={{ marginVertical: 20 }} />
       ) : blogs.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <FontAwesome5 name="rss" size={30} color="#3A3A42" />
-          <Text style={styles.emptyText}>No custom blogs added yet.</Text>
+          <FontAwesome5 name="rss" size={30} color="#1c1b1b" />
+          <Text style={styles.emptyText}>NO CUSTOM BLOGS ADDED YET.</Text>
         </View>
       ) : (
         <View style={styles.listContainer}>
           {blogs.map((item) => (
             <View key={item.id} style={styles.listItem}>
               <View style={styles.listItemLeft}>
-                <FontAwesome5 name="rss" size={14} color="#FF2D55" />
+                <FontAwesome5 name="rss" size={14} color="#bc000a" />
                 <View style={styles.blogMeta}>
-                  <Text style={styles.blogName}>{item.blog_name}</Text>
+                  <Text style={styles.blogName}>{item.blog_name.toUpperCase()}</Text>
                   <Text style={styles.blogUrl} numberOfLines={1}>
                     {item.blog_url}
                   </Text>
@@ -170,14 +170,14 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
                 <Switch
                   value={item.is_active}
                   onValueChange={(val) => onToggleBlog(item.id, val)}
-                  trackColor={{ false: '#3A3A42', true: 'rgba(255, 45, 85, 0.4)' }}
-                  thumbColor={item.is_active ? '#FF2D55' : '#8E8E93'}
+                  trackColor={{ false: '#dcd9d9', true: 'rgba(188, 0, 10, 0.3)' }}
+                  thumbColor={item.is_active ? '#bc000a' : '#926f6a'}
                 />
                 <Pressable
                   style={styles.deleteBtn}
                   onPress={() => onRemoveBlog(item.id)}
                 >
-                  <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+                  <Ionicons name="trash-outline" size={18} color="#bc000a" />
                 </Pressable>
               </View>
             </View>
@@ -190,23 +190,25 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1E1E24',
-    borderRadius: 16,
+    backgroundColor: '#fcf9f8',
+    borderRadius: 0,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#2A2A32',
+    borderColor: '#1c1b1b',
     marginBottom: 20,
   },
   sectionTitle: {
-    color: '#FFFFFF',
+    color: '#1c1b1b',
     fontSize: 16,
     fontWeight: '700',
+    fontFamily: 'SpaceMono',
     marginBottom: 4,
   },
   description: {
-    color: '#8E8E93',
+    color: '#926f6a',
     fontSize: 12,
     lineHeight: 16,
+    fontFamily: 'SpaceMono',
     marginBottom: 16,
   },
   form: {
@@ -215,44 +217,50 @@ const styles = StyleSheet.create({
   },
   input: {
     height: 48,
-    backgroundColor: '#16161A',
-    borderRadius: 10,
+    backgroundColor: '#f0eded',
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#2A2A32',
-    color: '#FFFFFF',
+    borderColor: '#1c1b1b',
+    color: '#1c1b1b',
     paddingHorizontal: 12,
-    fontSize: 14,
+    fontSize: 13,
+    fontFamily: 'SpaceMono',
   },
   inputError: {
-    borderColor: '#FF3B30',
+    borderColor: '#bc000a',
   },
   submitButton: {
-    backgroundColor: '#FF2D55', // Blog red
-    borderRadius: 10,
+    backgroundColor: '#bc000a',
+    borderRadius: 0,
     height: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#1c1b1b',
     gap: 8,
   },
   submitButtonDisabled: {
-    backgroundColor: '#8E8E93',
+    backgroundColor: '#926f6a',
     opacity: 0.5,
   },
   submitText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
   errorText: {
-    color: '#FF3B30',
+    color: '#bc000a',
     fontSize: 12,
+    fontFamily: 'SpaceMono',
     marginTop: 4,
   },
   subTitle: {
-    color: '#FFFFFF',
+    color: '#bc000a',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
     marginTop: 20,
     marginBottom: 10,
   },
@@ -265,20 +273,23 @@ const styles = StyleSheet.create({
   suggestionChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2A2A32',
+    backgroundColor: '#f0eded',
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 0,
+    borderWidth: 1,
+    borderColor: '#1c1b1b',
     gap: 4,
   },
   suggestionChipAdded: {
-    backgroundColor: 'rgba(42, 42, 50, 0.4)',
-    opacity: 0.7,
+    backgroundColor: '#dcd9d9',
+    opacity: 0.5,
   },
   suggestionText: {
-    color: '#E5E5EA',
+    color: '#1c1b1b',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
   emptyContainer: {
     paddingVertical: 24,
@@ -287,8 +298,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyText: {
-    color: '#8E8E93',
+    color: '#926f6a',
     fontSize: 13,
+    fontFamily: 'SpaceMono',
   },
   listContainer: {
     gap: 8,
@@ -297,11 +309,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#16161A',
-    borderRadius: 10,
+    backgroundColor: '#fcf9f8',
+    borderRadius: 0,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#2A2A32',
+    borderColor: '#1c1b1b',
   },
   listItemLeft: {
     flexDirection: 'row',
@@ -313,13 +325,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   blogName: {
-    color: '#FFFFFF',
+    color: '#1c1b1b',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
   blogUrl: {
-    color: '#8E8E93',
+    color: '#926f6a',
     fontSize: 11,
+    fontFamily: 'SpaceMono',
     marginTop: 2,
   },
   listItemRight: {
@@ -328,10 +342,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   deleteBtn: {
-    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    backgroundColor: '#f0eded',
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: 0,
+    borderWidth: 1,
+    borderColor: '#bc000a',
     alignItems: 'center',
     justifyContent: 'center',
   },

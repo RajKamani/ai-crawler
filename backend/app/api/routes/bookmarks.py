@@ -31,6 +31,8 @@ async def get_my_bookmarks(user = Depends(get_current_user)):
         posts = posts_res.data
         for post in posts:
             post["is_bookmarked"] = True
+            raw = post.get("raw_data") or {}
+            post["thumbnail_url"] = raw.get("thumbnail_url")
 
         return {"posts": posts, "count": len(posts)}
     except Exception as e:

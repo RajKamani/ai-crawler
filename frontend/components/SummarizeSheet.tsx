@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface SummarizeSheetProps {
   isVisible: boolean;
@@ -47,11 +48,11 @@ export const SummarizeSheet: React.FC<SummarizeSheetProps> = ({
           {/* Header Row */}
           <View style={styles.header}>
             <View style={styles.sparkleTitle}>
-              <Ionicons name="sparkles" size={18} color="#9F62FF" />
-              <Text style={styles.headerText}>AI Takeaways</Text>
+              <Ionicons name="sparkles" size={18} color="#bc000a" />
+              <Text style={styles.headerText}>AI TAKEAWAYS</Text>
             </View>
             <Pressable onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={20} color="#8E8E93" />
+              <Ionicons name="close" size={20} color="#1c1b1b" />
             </Pressable>
           </View>
 
@@ -64,34 +65,13 @@ export const SummarizeSheet: React.FC<SummarizeSheetProps> = ({
           <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent}>
             {isLoading ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#9F62FF" />
+                <ActivityIndicator size="large" color="#bc000a" />
                 <Text style={styles.loadingText}>Groq Llama 3.3 is reading and summarizing...</Text>
               </View>
             ) : (
               <View style={styles.summaryContainer}>
                 {summary ? (
-                  // Display bullet points formatted nicely
-                  summary.split('\n').map((line, idx) => {
-                    const cleanLine = line.trim();
-                    if (!cleanLine) return null;
-                    
-                    // Render bullet lines with distinct indicators
-                    const isBullet = cleanLine.startsWith('-') || cleanLine.startsWith('*') || cleanLine.startsWith('•');
-                    const text = isBullet ? cleanLine.substring(1).trim() : cleanLine;
-
-                    return (
-                      <View key={idx} style={styles.bulletRow}>
-                        {isBullet && (
-                          <View style={styles.bulletPoint}>
-                            <Ionicons name="star" size={8} color="#9F62FF" />
-                          </View>
-                        )}
-                        <Text style={[styles.summaryText, !isBullet && styles.nonBulletText]}>
-                          {text}
-                        </Text>
-                      </View>
-                    );
-                  })
+                  <MarkdownRenderer content={summary} />
                 ) : (
                   <Text style={styles.summaryText}>No summary available.</Text>
                 )}
@@ -102,7 +82,7 @@ export const SummarizeSheet: React.FC<SummarizeSheetProps> = ({
           {/* Bottom CTA */}
           <View style={styles.footer}>
             <Pressable style={styles.actionBtn} onPress={onClose}>
-              <Text style={styles.actionBtnText}>Got it, thanks!</Text>
+              <Text style={styles.actionBtnText}>GOT IT, THANKS!</Text>
             </Pressable>
           </View>
         </View>
@@ -114,18 +94,18 @@ export const SummarizeSheet: React.FC<SummarizeSheetProps> = ({
 const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'flex-end',
   },
   dismissArea: {
     flex: 1,
   },
   sheetContainer: {
-    backgroundColor: '#16161A',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: '#fcf9f8',
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     borderWidth: 1,
-    borderColor: '#2A2A32',
+    borderColor: '#1c1b1b',
     borderBottomWidth: 0,
     maxHeight: '75%',
     paddingBottom: 24,
@@ -133,8 +113,8 @@ const styles = StyleSheet.create({
   dragHandle: {
     width: 40,
     height: 4,
-    backgroundColor: '#3A3A42',
-    borderRadius: 2,
+    backgroundColor: '#1c1b1b',
+    borderRadius: 0,
     alignSelf: 'center',
     marginTop: 10,
     marginBottom: 16,
@@ -152,22 +132,26 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerText: {
-    color: '#FFFFFF',
+    color: '#1c1b1b',
     fontSize: 18,
     fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
   closeBtn: {
-    backgroundColor: '#2A2A32',
+    backgroundColor: '#f0eded',
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: 0,
+    borderWidth: 1,
+    borderColor: '#1c1b1b',
     alignItems: 'center',
     justifyContent: 'center',
   },
   postTitle: {
-    color: '#8E8E93',
+    color: '#926f6a',
     fontSize: 13,
     fontWeight: '500',
+    fontFamily: 'SpaceMono',
     paddingHorizontal: 20,
     marginBottom: 16,
     lineHeight: 18,
@@ -186,9 +170,10 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   loadingText: {
-    color: '#8E8E93',
+    color: '#926f6a',
     fontSize: 13,
     textAlign: 'center',
+    fontFamily: 'SpaceMono',
   },
   summaryContainer: {
     gap: 12,
@@ -206,21 +191,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   summaryText: {
-    color: '#FFFFFF',
+    color: '#1c1b1b',
     fontSize: 14,
     lineHeight: 22,
     flex: 1,
+    fontFamily: 'SpaceMono',
   },
   nonBulletText: {
-    fontWeight: '600',
-    color: '#E5E5EA',
+    fontWeight: '700',
+    color: '#1c1b1b',
   },
   footer: {
     paddingHorizontal: 20,
   },
   actionBtn: {
-    backgroundColor: '#9F62FF',
-    borderRadius: 12,
+    backgroundColor: '#bc000a',
+    borderRadius: 0,
+    borderWidth: 1,
+    borderColor: '#1c1b1b',
     height: 50,
     alignItems: 'center',
     justifyContent: 'center',
@@ -229,5 +217,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
 });
+

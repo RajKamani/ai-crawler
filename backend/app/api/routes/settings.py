@@ -31,8 +31,8 @@ async def update_crawler_setting(
 
     updates = {}
     if interval is not None:
-        if interval < 1:
-            raise HTTPException(400, "Interval must be at least 1 minute")
+        if interval == 0 or interval < -1440:
+            raise HTTPException(400, "Invalid schedule configuration. Interval must be positive or between -1 and -1440 for daily schedules.")
         updates["interval_minutes"] = interval
     
     if is_active is not None:

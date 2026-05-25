@@ -1,8 +1,14 @@
 import logging
 import asyncio
 from datetime import datetime
+# pyrefly: ignore [missing-import]
 from apscheduler.schedulers.background import BackgroundScheduler
+# pyrefly: ignore [missing-import]
 from apscheduler.triggers.interval import IntervalTrigger
+# pyrefly: ignore [missing-import]
+from apscheduler.triggers.cron import CronTrigger
+# pyrefly: ignore [missing-import]
+from apscheduler.triggers.date import DateTrigger
 from app.database import supabase
 from app.crawlers.blog_crawler import BlogCrawler
 from app.crawlers.reddit_crawler import RedditCrawler
@@ -113,6 +119,22 @@ JOB_MAPPING = {
     "github_trending": (job_crawl_github_trending, "Crawl GitHub trending repos")
 }
 
+def get_trigger_for_interval(interval: int, name: str):
+    if interval < 0:
+        minutes_past_midnight = abs(interval) - 1
+        hour = minutes_past_midnight // 60
+        minute = minutes_past_midnight % 60
+        logger.info(f"Scheduler: '{name}' parsed as Daily Time daily at {hour:02d}:{minute:02d}")
+        return CronTrigger(hour=hour, minute=minute)
+    elif interval >= 1000000:
+        run_timestamp = interval * 60
+        run_date = datetime.fromtimestamp(run_timestamp)
+        logger.info(f"Scheduler: '{name}' parsed as Specific Datetime at {run_date}")
+        return DateTrigger(run_date=run_date)
+    else:
+        logger.info(f"Scheduler: '{name}' parsed as Interval every {interval} minutes")
+        return IntervalTrigger(minutes=interval)
+
 def sync_scheduler_intervals():
     """
     Read settings from crawler_settings table and update job intervals.
@@ -133,6 +155,21 @@ def sync_scheduler_intervals():
             if name not in JOB_MAPPING:
                 continue
 
+            # Check if one-shot date schedule is in the past
+            if is_active and interval >= 1000000:
+                run_timestamp = interval * 60
+                run_date = datetime.fromtimestamp(run_timestamp)
+                if run_date <= datetime.now():
+                    logger.info(f"One-shot schedule {run_date} for {name} is in the past. Deactivating in database.")
+                    try:
+                        supabase.table("crawler_settings") \
+                            .update({"is_active": False}) \
+                            .eq("crawler_name", name) \
+                            .execute()
+                    except Exception as db_err:
+                        logger.error(f"Failed to auto-deactivate one-shot job {name}: {db_err}")
+                    is_active = False
+
             job_func, desc = JOB_MAPPING[name]
             job_id = f"job_{name}"
 
@@ -148,23 +185,22 @@ def sync_scheduler_intervals():
                         scheduler.remove_job(job_id)
                         current_schedules[name] = {"interval": interval, "is_active": False}
                     else:
-                        logger.info(f"Rescheduling crawler job: {name} (every {interval} min)")
+                        logger.info(f"Rescheduling crawler job: {name} (interval/value: {interval})")
                         scheduler.reschedule_job(
                             job_id,
-                            trigger=IntervalTrigger(minutes=interval)
+                            trigger=get_trigger_for_interval(interval, name)
                         )
                         current_schedules[name] = {"interval": interval, "is_active": True}
             else:
                 # If job doesn't exist but is active, add it
                 if is_active:
-                    logger.info(f"Adding crawler job: {name} (every {interval} min)")
+                    logger.info(f"Adding crawler job: {name} (interval/value: {interval})")
                     scheduler.add_job(
                         job_func,
-                        trigger=IntervalTrigger(minutes=interval),
+                        trigger=get_trigger_for_interval(interval, name),
                         id=job_id,
                         name=desc,
-                        replace_existing=True,
-                        next_run_time=datetime.now() # Run immediately on first startup
+                        replace_existing=True
                     )
                     current_schedules[name] = {"interval": interval, "is_active": True}
                 else:

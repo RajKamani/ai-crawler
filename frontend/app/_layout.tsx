@@ -51,7 +51,20 @@ function RootLayoutNav() {
     <SafeAreaProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="modal" options={{ presentation: 'modal', headerShown: true }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="settings" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="modal"
+            options={{
+              presentation: 'modal',
+              headerShown: true,
+              headerStyle: { backgroundColor: '#fcf9f8' },
+              headerTintColor: '#1c1b1b',
+              headerTitleStyle: { fontFamily: 'SpaceMono', fontWeight: '700' },
+              headerShadowVisible: false,
+            }}
+          />
+          <Stack.Screen name="+not-found" />
         </Stack>
       </ThemeProvider>
     </SafeAreaProvider>

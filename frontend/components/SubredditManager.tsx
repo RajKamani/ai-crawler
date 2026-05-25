@@ -56,7 +56,7 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
   return (
     <View style={styles.container}>
       {/* Title & Description */}
-      <Text style={styles.sectionTitle}>Add Custom Subreddit</Text>
+      <Text style={styles.sectionTitle}>ADD CUSTOM SUBREDDIT</Text>
       <Text style={styles.description}>
         Posts will be fetched unfiltered from custom subreddits.
       </Text>
@@ -65,8 +65,8 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
       <View style={styles.inputContainer}>
         <TextInput
           style={[styles.input, errorMsg ? styles.inputError : null]}
-          placeholder="e.g. r/selfhosted or python"
-          placeholderTextColor="#8E8E93"
+          placeholder="E.G. R/SELFHOSTED OR PYTHON"
+          placeholderTextColor="#926f6a"
           value={newSub}
           onChangeText={(text) => {
             setNewSub(text);
@@ -92,7 +92,7 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
       {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
 
       {/* Popular Suggestions */}
-      <Text style={styles.subTitle}>Quick Add Suggestions</Text>
+      <Text style={styles.subTitle}>QUICK ADD SUGGESTIONS</Text>
       <View style={styles.suggestionsContainer}>
         {suggestions.map((sub, idx) => {
           // Check if already added
@@ -111,9 +111,9 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
               onPress={() => !isAdded && handleAdd(sub.name)}
               disabled={isAdded || isSubmitting}
             >
-              <Text style={styles.suggestionText}>{sub.name}</Text>
+              <Text style={styles.suggestionText}>{sub.name.toUpperCase()}</Text>
               {isAdded && (
-                <Ionicons name="checkmark-circle" size={12} color="#8E8E93" />
+                <Ionicons name="checkmark-circle" size={12} color="#926f6a" />
               )}
             </Pressable>
           );
@@ -121,36 +121,36 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
       </View>
 
       {/* Added List */}
-      <Text style={styles.subTitle}>Your Custom Subreddits ({subreddits.length})</Text>
+      <Text style={styles.subTitle}>YOUR CUSTOM SUBREDDITS ({subreddits.length})</Text>
       
       {isLoading ? (
-        <ActivityIndicator size="small" color="#9F62FF" style={{ marginVertical: 20 }} />
+        <ActivityIndicator size="small" color="#bc000a" style={{ marginVertical: 20 }} />
       ) : subreddits.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <FontAwesome5 name="reddit" size={32} color="#3A3A42" />
-          <Text style={styles.emptyText}>No custom subreddits added yet.</Text>
+          <FontAwesome5 name="reddit" size={32} color="#1c1b1b" />
+          <Text style={styles.emptyText}>NO CUSTOM SUBREDDITS ADDED YET.</Text>
         </View>
       ) : (
         <View style={styles.listContainer}>
           {subreddits.map((item) => (
             <View key={item.id} style={styles.listItem}>
               <View style={styles.listItemLeft}>
-                <FontAwesome5 name="reddit-alien" size={16} color="#FF4500" />
-                <Text style={styles.subredditName}>{item.subreddit_name}</Text>
+                <FontAwesome5 name="reddit-alien" size={16} color="#bc000a" />
+                <Text style={styles.subredditName}>{item.subreddit_name.toUpperCase()}</Text>
               </View>
               
               <View style={styles.listItemRight}>
                 <Switch
                   value={item.is_active}
                   onValueChange={(val) => onToggleSubreddit(item.id, val)}
-                  trackColor={{ false: '#3A3A42', true: 'rgba(255, 69, 0, 0.4)' }}
-                  thumbColor={item.is_active ? '#FF4500' : '#8E8E93'}
+                  trackColor={{ false: '#dcd9d9', true: 'rgba(188, 0, 10, 0.3)' }}
+                  thumbColor={item.is_active ? '#bc000a' : '#926f6a'}
                 />
                 <Pressable
                   style={styles.deleteBtn}
                   onPress={() => onRemoveSubreddit(item.id)}
                 >
-                  <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+                  <Ionicons name="trash-outline" size={18} color="#bc000a" />
                 </Pressable>
               </View>
             </View>
@@ -163,23 +163,25 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1E1E24',
-    borderRadius: 16,
+    backgroundColor: '#fcf9f8',
+    borderRadius: 0,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#2A2A32',
+    borderColor: '#1c1b1b',
     marginBottom: 20,
   },
   sectionTitle: {
-    color: '#FFFFFF',
+    color: '#1c1b1b',
     fontSize: 16,
     fontWeight: '700',
+    fontFamily: 'SpaceMono',
     marginBottom: 4,
   },
   description: {
-    color: '#8E8E93',
+    color: '#926f6a',
     fontSize: 12,
     lineHeight: 16,
+    fontFamily: 'SpaceMono',
     marginBottom: 16,
   },
   inputContainer: {
@@ -190,38 +192,43 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     height: 48,
-    backgroundColor: '#16161A',
-    borderRadius: 10,
+    backgroundColor: '#f0eded',
+    borderRadius: 0,
     borderWidth: 1,
-    borderColor: '#2A2A32',
-    color: '#FFFFFF',
+    borderColor: '#1c1b1b',
+    color: '#1c1b1b',
     paddingHorizontal: 12,
-    fontSize: 14,
+    fontSize: 13,
+    fontFamily: 'SpaceMono',
   },
   inputError: {
-    borderColor: '#FF3B30',
+    borderColor: '#bc000a',
   },
   addButton: {
-    backgroundColor: '#FF4500', // Reddit orange
+    backgroundColor: '#bc000a',
     width: 48,
     height: 48,
-    borderRadius: 10,
+    borderRadius: 0,
+    borderWidth: 1,
+    borderColor: '#1c1b1b',
     alignItems: 'center',
     justifyContent: 'center',
   },
   addButtonDisabled: {
-    backgroundColor: '#8E8E93',
+    backgroundColor: '#926f6a',
     opacity: 0.5,
   },
   errorText: {
-    color: '#FF3B30',
+    color: '#bc000a',
     fontSize: 12,
+    fontFamily: 'SpaceMono',
     marginBottom: 12,
   },
   subTitle: {
-    color: '#FFFFFF',
+    color: '#bc000a',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
     marginTop: 16,
     marginBottom: 10,
   },
@@ -234,20 +241,23 @@ const styles = StyleSheet.create({
   suggestionChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2A2A32',
+    backgroundColor: '#f0eded',
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 0,
+    borderWidth: 1,
+    borderColor: '#1c1b1b',
     gap: 4,
   },
   suggestionChipAdded: {
-    backgroundColor: 'rgba(42, 42, 50, 0.4)',
-    opacity: 0.7,
+    backgroundColor: '#dcd9d9',
+    opacity: 0.5,
   },
   suggestionText: {
-    color: '#E5E5EA',
+    color: '#1c1b1b',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
   emptyContainer: {
     paddingVertical: 24,
@@ -256,8 +266,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyText: {
-    color: '#8E8E93',
+    color: '#926f6a',
     fontSize: 13,
+    fontFamily: 'SpaceMono',
   },
   listContainer: {
     gap: 8,
@@ -266,11 +277,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#16161A',
-    borderRadius: 10,
+    backgroundColor: '#fcf9f8',
+    borderRadius: 0,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#2A2A32',
+    borderColor: '#1c1b1b',
   },
   listItemLeft: {
     flexDirection: 'row',
@@ -278,9 +289,10 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   subredditName: {
-    color: '#FFFFFF',
+    color: '#1c1b1b',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
   listItemRight: {
     flexDirection: 'row',
@@ -288,10 +300,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   deleteBtn: {
-    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    backgroundColor: '#f0eded',
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: 0,
+    borderWidth: 1,
+    borderColor: '#bc000a',
     alignItems: 'center',
     justifyContent: 'center',
   },

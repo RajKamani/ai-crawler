@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { API_BASE_URL, AUTH_HEADER } from '@/constants/Config';
 import { PostType } from '@/components/PostCard';
 import { InshortsCard } from '@/components/InshortsCard';
+import { useViewedPosts } from '@/hooks/useViewedPosts';
 
 export default function BlogsScreen() {
   const [posts, setPosts] = useState<PostType[]>([]);
@@ -21,6 +22,21 @@ export default function BlogsScreen() {
 
   // Height container measurement
   const [containerHeight, setContainerHeight] = useState(0);
+
+  const { viewedIds, markAsViewed } = useViewedPosts();
+
+  const onViewableItemsChanged = React.useRef(({ viewableItems }: any) => {
+    if (viewableItems && viewableItems.length > 0) {
+      const activePost = viewableItems[0].item;
+      if (activePost && activePost.id) {
+        markAsViewed(activePost.id);
+      }
+    }
+  }).current;
+
+  const viewabilityConfig = React.useRef({
+    itemVisiblePercentThreshold: 50,
+  }).current;
 
   useEffect(() => {
     fetchPosts(1, true);
@@ -34,20 +50,23 @@ export default function BlogsScreen() {
         `${API_BASE_URL}/posts?type=blog&page=${pageNum}&limit=10`,
         { headers: { ...AUTH_HEADER } }
       );
-      const data = await response.json();
-
-      if (response.ok) {
-        const newPosts = data.posts || [];
-        if (shouldReset) {
-          setPosts(newPosts);
-        } else {
-          setPosts((prev) => [...prev, ...newPosts]);
-        }
-        setPage(pageNum);
-        setHasMore(newPosts.length === 10);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+
+      const data = await response.json();
+      const newPosts = data.posts || [];
+      if (shouldReset) {
+        setPosts(newPosts);
+      } else {
+        setPosts((prev) => [...prev, ...newPosts]);
+      }
+      setPage(pageNum);
+      setHasMore(newPosts.length === 10);
     } catch (error) {
       console.error('Error fetching blogs:', error);
+      setHasMore(false);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -56,11 +75,12 @@ export default function BlogsScreen() {
 
   const handleRefresh = () => {
     setIsRefreshing(true);
+    setHasMore(true);
     fetchPosts(1, true);
   };
 
   const handleLoadMore = () => {
-    if (!isLoading && hasMore) {
+    if (!isLoading && hasMore && posts.length > 0) {
       fetchPosts(page + 1);
     }
   };
@@ -123,18 +143,19 @@ export default function BlogsScreen() {
           containerHeight={containerHeight}
           onToggleBookmark={handleToggleBookmark}
           onSummarize={handleSummarize}
+          isViewed={viewedIds.has(item.id)}
         />
       );
     },
-    [containerHeight]
+    [containerHeight, viewedIds]
   );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>AI Blogs</Text>
-        <Text style={styles.headerSubtitle}>Latest Corporate & Custom RSS Feeds</Text>
+        <Text style={styles.headerTitle}>AI BLOGS</Text>
+        <Text style={styles.headerSubtitle}>LATEST CORPORATE & CUSTOM RSS FEEDS</Text>
       </View>
 
       {/* Main Snapping Area */}
@@ -156,6 +177,8 @@ export default function BlogsScreen() {
             onRefresh={handleRefresh}
             onEndReached={handleLoadMore}
             onEndReachedThreshold={0.5}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
             getItemLayout={(data, index) => ({
               length: containerHeight,
               offset: containerHeight * index,
@@ -164,14 +187,22 @@ export default function BlogsScreen() {
             ListEmptyComponent={
               isLoading ? (
                 <View style={styles.centerContainer}>
-                  <ActivityIndicator size="large" color="#FF2D55" />
+                  <ActivityIndicator size="large" color="#bc000a" />
                 </View>
               ) : (
                 <View style={styles.emptyContainer}>
-                  <Ionicons name="reader-outline" size={48} color="#3A3A42" />
-                  <Text style={styles.emptyText}>No blog posts available.</Text>
+                  <Ionicons name="reader-outline" size={48} color="#1c1b1b" />
+                  <Text style={styles.emptyText}>NO BLOG POSTS AVAILABLE.</Text>
                 </View>
               )
+            }
+            ListFooterComponent={
+              isLoading && posts.length > 0 ? (
+                <View style={styles.footerLoader}>
+                  <ActivityIndicator size="small" color="#bc000a" />
+                  <Text style={styles.footerLoaderText}>LOADING MORE BLOGS...</Text>
+                </View>
+              ) : null
             }
           />
         )}
@@ -183,46 +214,67 @@ export default function BlogsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#fcf9f8',
   },
   header: {
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E1E24',
-    backgroundColor: '#000000',
+    borderBottomColor: '#1c1b1b',
+    backgroundColor: '#fcf9f8',
   },
   headerTitle: {
-    color: '#FFFFFF',
+    color: '#1c1b1b',
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
   headerSubtitle: {
-    color: '#FF2D55',
+    color: '#bc000a',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
     marginTop: 2,
   },
   feedWrapper: {
     flex: 1,
     width: '100%',
-    backgroundColor: '#000000',
+    backgroundColor: '#fcf9f8',
   },
   centerContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 100,
+    backgroundColor: '#fcf9f8',
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 100,
     gap: 12,
+    backgroundColor: '#fcf9f8',
   },
   emptyText: {
-    color: '#8E8E93',
-    fontSize: 14,
+    color: '#926f6a',
+    fontSize: 13,
     textAlign: 'center',
+    fontFamily: 'SpaceMono',
+  },
+  footerLoader: {
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fcf9f8',
+    borderTopWidth: 1,
+    borderTopColor: '#1c1b1b',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  footerLoaderText: {
+    color: '#bc000a',
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
 });

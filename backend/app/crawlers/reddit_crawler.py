@@ -129,6 +129,19 @@ class RedditCrawler(BaseCrawler):
                 published_at = datetime.utcfromtimestamp(submission.created_utc)
                 url = f"https://reddit.com{submission.permalink}"
                 
+                # Check for image/thumbnail URL
+                thumb_url = submission.thumbnail if (submission.thumbnail and submission.thumbnail.startswith("http")) else None
+                if not thumb_url and not submission.is_self:
+                    if any(submission.url.lower().endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".gif", ".webp"]):
+                        thumb_url = submission.url
+
+                # Popularity filter: Score >= 50 OR Upvote Ratio >= 0.85
+                score = submission.score or 0
+                ratio = submission.upvote_ratio or 0.0
+                if score < 50 and ratio < 0.85:
+                    logger.info(f"Skipping Reddit post '{submission.title}' - not popular enough (Score: {score}, Ratio: {ratio})")
+                    continue
+
                 posts_data.append({
                     "title": submission.title,
                     "content": submission.selftext or submission.url,
@@ -139,7 +152,8 @@ class RedditCrawler(BaseCrawler):
                         "score": submission.score,
                         "num_comments": submission.num_comments,
                         "upvote_ratio": submission.upvote_ratio,
-                        "is_self": submission.is_self
+                        "is_self": submission.is_self,
+                        "thumbnail_url": thumb_url
                     }
                 })
         except Exception as e:
@@ -179,6 +193,21 @@ class RedditCrawler(BaseCrawler):
                     permalink = post_data.get("permalink", "")
                     post_url = f"https://reddit.com{permalink}" if permalink else post_data.get("url")
                     
+                    # Extract image URL
+                    thumb_url = post_data.get("thumbnail") if (post_data.get("thumbnail") and post_data.get("thumbnail").startswith("http")) else None
+                    if not thumb_url and not post_data.get("is_self"):
+                        post_url_field = post_data.get("url", "")
+                        if any(post_url_field.lower().endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".gif", ".webp"]):
+                            thumb_url = post_url_field
+
+                    # Popularity filter: Score >= 50 OR Upvote Ratio >= 0.85
+                    score = post_data.get("score") or 0
+                    ratio = post_data.get("upvote_ratio") or 0.0
+                    title = post_data.get("title", "")
+                    if score < 50 and ratio < 0.85:
+                        logger.info(f"Skipping Reddit post '{title}' - not popular enough (Score: {score}, Ratio: {ratio})")
+                        continue
+
                     posts_data.append({
                         "title": post_data.get("title", ""),
                         "content": post_data.get("selftext", "") or post_data.get("url", ""),
@@ -189,7 +218,8 @@ class RedditCrawler(BaseCrawler):
                             "score": post_data.get("score"),
                             "num_comments": post_data.get("num_comments"),
                             "upvote_ratio": post_data.get("upvote_ratio"),
-                            "is_self": post_data.get("is_self")
+                            "is_self": post_data.get("is_self"),
+                            "thumbnail_url": thumb_url
                         }
                     })
         except Exception as e:
