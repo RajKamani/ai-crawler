@@ -208,11 +208,16 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
 
         <View style={styles.divider} />
 
-        {/* Dynamic content scrollable area */}
         <ScrollView
           style={styles.scrollArea}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          nestedScrollEnabled={true}
+          {...({
+            onWheel: (e: any) => {
+              e.stopPropagation();
+            },
+          } as any)}
         >
           {showSummary ? (
             <View style={styles.summaryArea}>
