@@ -32,6 +32,26 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+def run_migrations():
+    logger.info("Checking database migrations...")
+    db_url = settings.DATABASE_URL
+    if not db_url:
+        logger.warning("DATABASE_URL not set. Skipping database migrations.")
+        return
+    try:
+        import os
+        from alembic.config import Config
+        from alembic import command
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        ini_path = os.path.join(base_dir, "alembic.ini")
+        
+        logger.info(f"Running Alembic migrations with config: {ini_path}")
+        alembic_cfg = Config(ini_path)
+        command.upgrade(alembic_cfg, "head")
+        logger.info("Database migrations completed successfully.")
+    except Exception as e:
+        logger.error(f"Failed to run database migrations: {e}")
+
 # Token Bucket Rate Limiting Middleware
 class RateLimitMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, rate_limit_seconds: float = 60.0, max_requests: int = 100):
@@ -75,8 +95,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Initialize Background Scheduler
+    # Startup: Run migrations first, then initialize Background Scheduler
     logger.info("Initializing application startup lifespan...")
+    
+    # Run Alembic migrations programmatically
+    run_migrations()
+    
     try:
         start_scheduler()
         logger.info("Startup complete.")
