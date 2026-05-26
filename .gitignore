@@ -45,3 +45,4 @@ yarn-error.*
 .vscode
 __pycache__
 steps.md
+scratch

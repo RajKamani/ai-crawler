@@ -10,6 +10,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.10.12
+      - key: PYTHONUNBUFFERED
+        value: "1"
       - key: SUPABASE_URL
         sync: false # Prompts the user to input this secret during setup
       - key: SUPABASE_KEY
