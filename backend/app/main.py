@@ -33,7 +33,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def run_migrations():
-    logger.info("Checking database migrations...")
+    logger.warning("Checking database migrations...")
     db_url = settings.DATABASE_URL
     if not db_url:
         logger.warning("DATABASE_URL not set. Skipping database migrations.")
@@ -42,23 +42,31 @@ def run_migrations():
         import os
         from alembic.config import Config
         from alembic import command
+        from sqlalchemy import create_engine, text
+        
+        # Log host info safely at WARNING level
+        from urllib.parse import urlparse
+        parsed = urlparse(db_url)
+        logger.warning(f"Connecting to database host: {parsed.hostname}, database: {parsed.path}")
+        
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         ini_path = os.path.join(base_dir, "alembic.ini")
         
-        logger.info(f"Running Alembic migrations with config: {ini_path}")
+        logger.warning(f"Running Alembic migrations with config: {ini_path}")
         alembic_cfg = Config(ini_path)
         command.upgrade(alembic_cfg, "head")
-        logger.info("Database migrations completed successfully.")
+        logger.warning("Database migrations completed successfully.")
         
-        # Notify PostgREST to reload schema cache
-        try:
-            from sqlalchemy import create_engine, text
-            engine = create_engine(db_url)
-            with engine.begin() as conn:
-                conn.execute(text("NOTIFY pgrst, 'reload schema';"))
-            logger.info("Sent schema reload notification to PostgREST.")
-        except Exception as notify_err:
-            logger.warning(f"Failed to notify PostgREST schema reload: {notify_err}")
+        # List tables in public schema at WARNING level
+        engine = create_engine(db_url)
+        with engine.begin() as conn:
+            res = conn.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"))
+            tables = [r[0] for r in res.fetchall()]
+            logger.warning(f"Public tables found: {tables}")
+            
+            # Notify PostgREST to reload schema cache
+            conn.execute(text("NOTIFY pgrst, 'reload schema';"))
+            logger.warning("Sent schema reload notification to PostgREST.")
             
     except Exception as e:
         logger.error(f"Failed to run database migrations: {e}")
