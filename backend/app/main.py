@@ -49,6 +49,17 @@ def run_migrations():
         alembic_cfg = Config(ini_path)
         command.upgrade(alembic_cfg, "head")
         logger.info("Database migrations completed successfully.")
+        
+        # Notify PostgREST to reload schema cache
+        try:
+            from sqlalchemy import create_engine, text
+            engine = create_engine(db_url)
+            with engine.begin() as conn:
+                conn.execute(text("NOTIFY pgrst, 'reload schema';"))
+            logger.info("Sent schema reload notification to PostgREST.")
+        except Exception as notify_err:
+            logger.warning(f"Failed to notify PostgREST schema reload: {notify_err}")
+            
     except Exception as e:
         logger.error(f"Failed to run database migrations: {e}")
 
