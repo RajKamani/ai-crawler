@@ -58,7 +58,7 @@ def run_migrations():
         logger.warning("Database migrations completed successfully.")
         
         # List tables in public schema at WARNING level
-        engine = create_engine(db_url)
+        engine = create_engine(db_url, connect_args={"connect_timeout": 5})
         with engine.begin() as conn:
             res = conn.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';"))
             tables = [r[0] for r in res.fetchall()]
