@@ -11,10 +11,16 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ai-content-crawler-backend.onrender.com/api/v1"
       }
     },
     "production": {
-      "distribution": "store"
+      "distribution": "store",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ai-content-crawler-backend.onrender.com/api/v1"
+      }
     }
   },
   "submit": {
