@@ -30,7 +30,7 @@ export const AuthScreen: React.FC = () => {
       setErrorMsg('Please fill in all fields.');
       return;
     }
-    
+
     setErrorMsg(null);
     setIsLoading(true);
 
@@ -42,12 +42,17 @@ export const AuthScreen: React.FC = () => {
         });
         if (error) throw error;
       } else {
+        const redirectUrl = Linking.createURL('/');
+        console.log('Signup Email Redirect URL:', redirectUrl);
         const { error, data } = await supabase.auth.signUp({
           email: email.trim(),
           password: password.trim(),
+          options: {
+            emailRedirectTo: redirectUrl,
+          },
         });
         if (error) throw error;
-        
+
         // If email confirmation is enabled, guide the user
         if (data.session) {
           setErrorMsg(null);
