@@ -11,7 +11,12 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { supabase } from '../utils/supabase';
+
+// Completes the OAuth session redirect handling for web/browser environments
+WebBrowser.maybeCompleteAuthSession();
 
 export const AuthScreen: React.FC = () => {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
@@ -57,6 +62,84 @@ export const AuthScreen: React.FC = () => {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setErrorMsg(null);
+    setIsLoading(true);
+    try {
+      const redirectUrl = Linking.createURL('/');
+      console.log('Google Auth Redirect URL:', redirectUrl);
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.url) throw new Error('No authentication URL returned from Supabase.');
+
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+
+      if (result.type === 'success' && result.url) {
+        let accessToken: string | null = null;
+        let refreshToken: string | null = null;
+
+        // 1. Check query parameters
+        const parsedUrl = Linking.parse(result.url);
+        if (parsedUrl.queryParams) {
+          accessToken = parsedUrl.queryParams.access_token as string || null;
+          refreshToken = parsedUrl.queryParams.refresh_token as string || null;
+        }
+
+        // 2. Check hash fragment (Supabase standard redirect)
+        if (!accessToken || !refreshToken) {
+          const hashIndex = result.url.indexOf('#');
+          if (hashIndex !== -1) {
+            const hash = result.url.substring(hashIndex + 1);
+            const params = new URLSearchParams(hash);
+            accessToken = params.get('access_token');
+            refreshToken = params.get('refresh_token');
+          }
+        }
+
+        // 3. Manual hash parsing fallback
+        if (!accessToken || !refreshToken) {
+          const hashIndex = result.url.indexOf('#');
+          if (hashIndex !== -1) {
+            const hash = result.url.substring(hashIndex + 1);
+            const parts = hash.split('&');
+            const params: Record<string, string> = {};
+            parts.forEach((part) => {
+              const [key, value] = part.split('=');
+              if (key && value) {
+                params[key] = decodeURIComponent(value);
+              }
+            });
+            accessToken = params['access_token'] || null;
+            refreshToken = params['refresh_token'] || null;
+          }
+        }
+
+        if (accessToken && refreshToken) {
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (sessionError) throw sessionError;
+        } else {
+          throw new Error('Authentication tokens were not returned in the redirect URL.');
+        }
+      }
+    } catch (err: any) {
+      console.error('Google Auth Error:', err);
+      setErrorMsg(err.message || 'Google sign in failed.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -81,6 +164,23 @@ export const AuthScreen: React.FC = () => {
               <Text style={styles.errorText}>{errorMsg}</Text>
             </View>
           )}
+
+          {/* Google Sign In Button */}
+          <Pressable
+            style={[styles.googleButton, isLoading && styles.buttonDisabled]}
+            onPress={handleGoogleSignIn}
+            disabled={isLoading}
+          >
+            <Ionicons name="logo-google" size={18} color="#1c1b1b" style={styles.googleIcon} />
+            <Text style={styles.googleButtonText}>CONTINUE WITH GOOGLE</Text>
+          </Pressable>
+
+          {/* Divider */}
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
 
           {/* Email field */}
           <Text style={styles.label}>EMAIL ADDRESS</Text>
@@ -273,6 +373,47 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 9,
     fontFamily: 'SpaceMono',
+    color: '#926f6a',
+  },
+  googleButton: {
+    height: 48,
+    backgroundColor: '#fcf9f8',
+    borderWidth: 2,
+    borderColor: '#1c1b1b',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    shadowColor: '#1c1b1b',
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 3,
+  },
+  googleIcon: {
+    marginRight: 10,
+  },
+  googleButtonText: {
+    color: '#1c1b1b',
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono-Bold',
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#1c1b1b',
+  },
+  dividerText: {
+    paddingHorizontal: 12,
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono-Bold',
     color: '#926f6a',
   },
 });
