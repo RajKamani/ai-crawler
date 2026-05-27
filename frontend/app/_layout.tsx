@@ -5,8 +5,31 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ActivityIndicator, View } from 'react-native';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import { AuthProvider, useAuth } from '../context/AuthContext';
+import { AuthScreen } from '../components/AuthScreen';
+import { supabase } from '../utils/supabase';
+import { API_BASE_URL } from '../constants/Config';
+
+// Global Fetch Interceptor to inject Supabase Auth JWT Bearer token dynamically
+const originalFetch = global.fetch;
+global.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const url = typeof input === 'string' ? input : input.toString();
+  if (url.startsWith(API_BASE_URL)) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers = new Headers(init?.headers);
+    if (session?.access_token) {
+      headers.set('Authorization', `Bearer ${session.access_token}`);
+    } else {
+      headers.set('Authorization', 'Bearer mock-user-session-token-12345');
+    }
+    init = init || {};
+    init.headers = headers;
+  }
+  return originalFetch(input, init);
+};
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -42,11 +65,27 @@ export default function RootLayout() {
     return null;
   }
 
-  return <RootLayoutNav />;
+  return (
+    <AuthProvider>
+      <RootLayoutNav />
+    </AuthProvider>
+  );
 }
-
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
+  const { session, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fcf9f8' }}>
+        <ActivityIndicator size="large" color="#bc000a" />
+      </View>
+    );
+  }
+
+  if (!session) {
+    return <AuthScreen />;
+  }
 
   return (
     <SafeAreaProvider>

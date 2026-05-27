@@ -3,6 +3,7 @@ import { StyleSheet, View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { Link } from 'expo-router';
+import { useAuth } from '../../context/AuthContext';
 
 interface SettingsMenuItemProps {
   icon: string;
@@ -42,6 +43,10 @@ const SettingsMenuItem: React.FC<SettingsMenuItemProps> = ({
 };
 
 export default function SettingsHubScreen() {
+  const { user, signOut } = useAuth();
+  const email = user?.email || 'mock-user@local.host';
+  const username = email.split('@')[0].toUpperCase();
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
@@ -51,14 +56,14 @@ export default function SettingsHubScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Profile Card / Static info */}
+        {/* Profile Card / Dynamic user info */}
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
             <Ionicons name="person" size={24} color="#fcf9f8" />
           </View>
           <View style={styles.profileText}>
-            <Text style={styles.profileName}>DEVELOPER SANDBOX</Text>
-            <Text style={styles.profileEmail}>mock-developer@local.host</Text>
+            <Text style={styles.profileName}>{username}</Text>
+            <Text style={styles.profileEmail}>{email}</Text>
           </View>
         </View>
 
@@ -108,6 +113,20 @@ export default function SettingsHubScreen() {
             This application utilizes Groq Llama 3.3 for summarizing. Feeds are crawled asynchronously via FastAPI background tasks and stored in Supabase PostgreSQL database.
           </Text>
         </View>
+
+        {/* Sign Out Button */}
+        <Pressable 
+          style={[styles.menuItem, styles.logoutButton]}
+          onPress={signOut}
+        >
+          <View style={[styles.iconContainer, styles.logoutIconContainer]}>
+            <Ionicons name="log-out-outline" size={18} color="#aa352b" />
+          </View>
+          <View style={styles.textContainer}>
+            <Text style={[styles.menuTitle, styles.logoutTitle]}>LOGOUT</Text>
+            <Text style={styles.menuSubtitle}>Sign out of your Supabase account</Text>
+          </View>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -247,5 +266,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'SpaceMono',
     lineHeight: 16,
+  },
+  logoutButton: {
+    marginTop: 24,
+    borderWidth: 1,
+    borderColor: '#1c1b1b',
+    backgroundColor: '#fcf0ef',
+  },
+  logoutIconContainer: {
+    backgroundColor: '#fcdcdb',
+  },
+  logoutTitle: {
+    color: '#aa352b',
   },
 });
