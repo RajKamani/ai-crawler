@@ -24,6 +24,14 @@ export interface PostType {
     language?: string;
     topics?: string[];
     homepage?: string;
+    score?: number;
+    num_comments?: number;
+    upvote_ratio?: number;
+    comments?: {
+      author: string;
+      body: string;
+      score: number;
+    }[];
   };
 }
 

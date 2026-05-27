@@ -258,9 +258,38 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
                   </View>
                 </View>
               )}
+
+              {post.sources?.type === 'reddit' && post.raw_data && (
+                <View style={styles.redditStatsRow}>
+                  <View style={styles.redditStat}>
+                    <Ionicons name="arrow-up" size={14} color="#aa352b" />
+                    <Text style={styles.redditStatText}>{(post.raw_data.score ?? 0).toLocaleString()} upvotes</Text>
+                  </View>
+                  <View style={styles.redditStat}>
+                    <Ionicons name="chatbox-ellipses" size={14} color="#1c1b1b" />
+                    <Text style={styles.redditStatText}>{(post.raw_data.num_comments ?? 0).toLocaleString()} comments</Text>
+                  </View>
+                </View>
+              )}
+
               <Text style={styles.bodyText}>
                 {post.content ? post.content.replace(/\n+/g, '\n\n') : 'No content preview available.'}
               </Text>
+
+              {post.sources?.type === 'reddit' && post.raw_data?.comments && post.raw_data.comments.length > 0 && (
+                <View style={styles.commentsContainer}>
+                  <Text style={styles.commentsHeader}>TOP COMMENTS</Text>
+                  {post.raw_data.comments.map((comment: any, idx: number) => (
+                    <View key={idx} style={styles.commentItem}>
+                      <View style={styles.commentMeta}>
+                        <Text style={styles.commentAuthor}>u/{comment.author}</Text>
+                        <Text style={styles.commentScore}>• {comment.score} upvotes</Text>
+                      </View>
+                      <Text style={styles.commentBody}>{comment.body}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           )}
         </ScrollView>
@@ -532,5 +561,70 @@ const styles = StyleSheet.create({
   },
   titleViewed: {
     color: '#926f6a',
+  },
+  redditStatsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 14,
+    backgroundColor: '#fcf0ef',
+    padding: 8,
+    borderRadius: 0,
+    borderWidth: 1,
+    borderColor: '#aa352b',
+  },
+  redditStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  redditStatText: {
+    color: '#aa352b',
+    fontSize: 11,
+    fontWeight: '600',
+    fontFamily: 'SpaceMono',
+  },
+  commentsContainer: {
+    marginTop: 18,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#1c1b1b',
+  },
+  commentsHeader: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#aa352b',
+    fontFamily: 'SpaceMono',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+  },
+  commentItem: {
+    backgroundColor: '#f0eded',
+    borderWidth: 1,
+    borderColor: '#1c1b1b',
+    padding: 10,
+    marginBottom: 8,
+  },
+  commentMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+    gap: 6,
+  },
+  commentAuthor: {
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
+    color: '#aa352b',
+  },
+  commentScore: {
+    fontSize: 10,
+    fontFamily: 'SpaceMono',
+    color: '#555555',
+  },
+  commentBody: {
+    fontSize: 12,
+    lineHeight: 18,
+    fontFamily: 'SpaceMono',
+    color: '#1c1b1b',
   },
 });

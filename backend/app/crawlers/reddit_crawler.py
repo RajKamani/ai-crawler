@@ -55,6 +55,8 @@ class RedditCrawler(BaseCrawler):
                 is_relevant = any(kw in text_to_check for kw in RELEVANCE_KEYWORDS)
 
                 if is_relevant:
+                    comments = await self._fetch_comments_for_post(post)
+                    post["raw_data"]["comments"] = comments
                     res = await self.save_post(
                         title=post["title"],
                         content=post["content"],
@@ -96,6 +98,8 @@ class RedditCrawler(BaseCrawler):
                     for post in posts:
                         total_found += 1
                         if not await self.is_duplicate(post["url"]):
+                            comments = await self._fetch_comments_for_post(post)
+                            post["raw_data"]["comments"] = comments
                             # No keyword filter for user custom subreddits
                             res = await self.save_post(
                                 title=post["title"],
@@ -150,11 +154,10 @@ class RedditCrawler(BaseCrawler):
                     if any(submission.url.lower().endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".gif", ".webp"]):
                         thumb_url = submission.url
 
-                # Popularity filter: Score >= 50 OR Upvote Ratio >= 0.85
+                # Popularity filter: Score >= 20
                 score = submission.score or 0
-                ratio = submission.upvote_ratio or 0.0
-                if score < 50 and ratio < 0.85:
-                    logger.info(f"Skipping Reddit post '{submission.title}' - not popular enough (Score: {score}, Ratio: {ratio})")
+                if score < 20:
+                    logger.info(f"Skipping Reddit post '{submission.title}' - not popular enough (Score: {score})")
                     continue
 
                 posts_data.append({
@@ -168,7 +171,8 @@ class RedditCrawler(BaseCrawler):
                         "num_comments": submission.num_comments,
                         "upvote_ratio": submission.upvote_ratio,
                         "is_self": submission.is_self,
-                        "thumbnail_url": thumb_url
+                        "thumbnail_url": thumb_url,
+                        "permalink": submission.permalink
                     }
                 })
         except Exception as e:
@@ -215,12 +219,11 @@ class RedditCrawler(BaseCrawler):
                         if any(post_url_field.lower().endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".gif", ".webp"]):
                             thumb_url = post_url_field
 
-                    # Popularity filter: Score >= 50 OR Upvote Ratio >= 0.85
+                    # Popularity filter: Score >= 20
                     score = post_data.get("score") or 0
-                    ratio = post_data.get("upvote_ratio") or 0.0
                     title = post_data.get("title", "")
-                    if score < 50 and ratio < 0.85:
-                        logger.info(f"Skipping Reddit post '{title}' - not popular enough (Score: {score}, Ratio: {ratio})")
+                    if score < 20:
+                        logger.info(f"Skipping Reddit post '{title}' - not popular enough (Score: {score})")
                         continue
 
                     posts_data.append({
@@ -234,12 +237,61 @@ class RedditCrawler(BaseCrawler):
                             "num_comments": post_data.get("num_comments"),
                             "upvote_ratio": post_data.get("upvote_ratio"),
                             "is_self": post_data.get("is_self"),
-                            "thumbnail_url": thumb_url
+                            "thumbnail_url": thumb_url,
+                            "permalink": permalink
                         }
                     })
         except Exception as e:
             logger.error(f"Public JSON fetch error for r/{subreddit_name}: {e}")
         return posts_data
+
+    async def _fetch_comments_for_post(self, post: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Fetch top comments for a given post"""
+        comments_data = []
+        permalink = post.get("raw_data", {}).get("permalink")
+        if not permalink:
+            return []
+            
+        # 1. PRAW Path
+        if self.reddit:
+            try:
+                submission = self.reddit.submission(url=f"https://reddit.com{permalink}")
+                submission.comment_sort = 'best'
+                submission.comments.replace_more(limit=0)
+                for comment in submission.comments[:3]:
+                    comments_data.append({
+                        "author": comment.author.name if comment.author else "[deleted]",
+                        "body": comment.body,
+                        "score": comment.score
+                    })
+            except Exception as e:
+                logger.error(f"Error fetching comments via PRAW for {permalink}: {e}")
+                
+        # 2. Public JSON Path
+        else:
+            try:
+                url = f"https://www.reddit.com{permalink}.json?limit=5"
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                }
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(url, headers=headers, timeout=5.0)
+                    if response.status_code == 200:
+                        data = response.json()
+                        if isinstance(data, list) and len(data) > 1:
+                            comment_children = data[1].get("data", {}).get("children", [])
+                            for child in comment_children[:3]:
+                                if child.get("kind") == "t1":
+                                    c_data = child.get("data", {})
+                                    comments_data.append({
+                                        "author": c_data.get("author", "[deleted]"),
+                                        "body": c_data.get("body", ""),
+                                        "score": c_data.get("score", 0)
+                                    })
+            except Exception as e:
+                logger.error(f"Error fetching comments via Public JSON for {permalink}: {e}")
+                
+        return comments_data
 
     async def _get_or_create_source(self, name: str, sub_path: str) -> str:
         """Find existing source or create new one for user subreddit"""
