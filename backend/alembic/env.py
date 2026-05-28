@@ -65,14 +65,19 @@ def run_migrations_online() -> None:
     # Override the sqlalchemy.url option with the environment variable if available
     db_url = os.getenv("DATABASE_URL")
     if db_url:
-        config.set_main_option("sqlalchemy.url", db_url)
-
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-        connect_args={"connect_timeout": 5}
-    )
+        from sqlalchemy import create_engine
+        connectable = create_engine(
+            db_url,
+            poolclass=pool.NullPool,
+            connect_args={"connect_timeout": 5}
+        )
+    else:
+        connectable = engine_from_config(
+            config.get_section(config.config_ini_section, {}),
+            prefix="sqlalchemy.",
+            poolclass=pool.NullPool,
+            connect_args={"connect_timeout": 5}
+        )
 
     with connectable.connect() as connection:
         context.configure(
@@ -81,6 +86,7 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
+
 
 
 if context.is_offline_mode():

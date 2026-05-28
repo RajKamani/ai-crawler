@@ -22,30 +22,31 @@ class BlogCrawler(BaseCrawler):
             source_name=source["name"]
         )
 
-    async def crawl_user_blogs(self):
-        """Crawl all active user-added custom blog feeds"""
-        logger.info("Crawling user custom blogs...")
+    async def crawl_user_blogs(self, user_id: str):
+        """Crawl all active user-added custom blog feeds for a specific user"""
+        logger.info(f"Crawling user custom blogs for user {user_id}...")
         total_found = 0
         total_saved = 0
         try:
-            # Fetch all active user blogs
+            # Fetch all active user blogs for the user
             result = supabase.table("user_blogs") \
                 .select("blog_name, blog_url") \
+                .eq("user_id", user_id) \
                 .eq("is_active", True) \
                 .execute()
             
             if not result.data:
-                logger.info("No active user custom blogs found.")
+                logger.info(f"No active user custom blogs found for user {user_id}.")
                 return 0, 0
 
-            # Deduplicate blog URLs across users to avoid multiple requests
+            # Deduplicate blog URLs (likely already unique per user)
             unique_blogs = {}
             for row in result.data:
                 unique_blogs[row["blog_url"]] = row["blog_name"]
             
             for blog_url, blog_name in unique_blogs.items():
                 try:
-                    source_id = await self._get_or_create_source(blog_name, blog_url)
+                    source_id = await self._get_or_create_source(blog_name, blog_url, user_id=user_id)
                     found, saved = await self._crawl_feed(
                         feed_url=blog_url,
                         source_id=source_id,
@@ -54,12 +55,13 @@ class BlogCrawler(BaseCrawler):
                     total_found += found
                     total_saved += saved
                 except Exception as e:
-                    logger.error(f"Error crawling user blog {blog_name} ({blog_url}): {e}")
+                    logger.error(f"Error crawling user blog {blog_name} ({blog_url}) for user {user_id}: {e}")
 
-            # Update last_crawled_at for all crawled active user blogs
+            # Update last_crawled_at for this user's active user blogs
             now_iso = datetime.utcnow().isoformat() + "Z"
             supabase.table("user_blogs") \
                 .update({"last_crawled_at": now_iso}) \
+                .eq("user_id", user_id) \
                 .eq("is_active", True) \
                 .execute()
                 
@@ -83,7 +85,7 @@ class BlogCrawler(BaseCrawler):
                     continue
 
                 found_count += 1
-                if await self.is_duplicate(url):
+                if await self.is_duplicate(url, source_id):
                     continue
 
                 title = entry.get('title', 'Untitled')
@@ -153,25 +155,35 @@ class BlogCrawler(BaseCrawler):
                 pass
         return None
 
-    async def _get_or_create_source(self, blog_name: str, blog_url: str) -> str:
+    async def _get_or_create_source(self, blog_name: str, blog_url: str, user_id: Optional[str] = None) -> str:
         """Find existing source or create new one for user blog"""
-        res = supabase.table("sources") \
+        query = supabase.table("sources") \
             .select("id") \
             .eq("url", blog_url) \
-            .eq("type", "blog") \
-            .execute()
+            .eq("type", "blog")
+            
+        if user_id:
+            query = query.eq("user_id", user_id)
+        else:
+            query = query.is_("user_id", "null")
+            
+        res = query.execute()
         
         if res.data:
             return res.data[0]["id"]
         
         # Create a new source record in database
-        new_source = supabase.table("sources").insert({
+        insert_data = {
             "name": blog_name,
             "type": "blog",
             "url": blog_url,
             "is_active": True,
             "crawl_frequency_minutes": 90
-        }).execute()
+        }
+        if user_id:
+            insert_data["user_id"] = user_id
+            
+        new_source = supabase.table("sources").insert(insert_data).execute()
         return new_source.data[0]["id"]
 
     def _extract_content(self, entry) -> str:

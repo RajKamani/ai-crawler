@@ -1,19 +1,22 @@
 import logging
 import httpx
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from app.database import supabase
 
 logger = logging.getLogger(__name__)
 
 EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
 
-async def get_active_tokens() -> List[str]:
-    """Retrieve all active Expo push tokens from the database"""
+async def get_active_tokens(user_id: Optional[str] = None) -> List[str]:
+    """Retrieve all active Expo push tokens from the database, optionally filtered by user_id"""
     try:
-        res = supabase.table("notification_tokens").select("expo_push_token").eq("is_active", True).execute()
+        query = supabase.table("notification_tokens").select("expo_push_token").eq("is_active", True)
+        if user_id:
+            query = query.eq("user_id", user_id)
+        res = query.execute()
         return [item["expo_push_token"] for item in res.data]
     except Exception as e:
-        logger.error(f"Failed to fetch active notification tokens: {e}")
+        logger.error(f"Failed to fetch active notification tokens for user {user_id}: {e}")
         return []
 
 async def send_push_notification(tokens: List[str], title: str, body: str, data: Dict[str, Any] = None) -> bool:
@@ -80,9 +83,9 @@ async def mark_token_inactive(token: str) -> None:
     except Exception as e:
         logger.error(f"Failed to mark token inactive: {e}")
 
-async def notify_new_post(post_title: str, post_id: str, source_type: str) -> None:
-    """Notify all active tokens about a new post"""
-    tokens = await get_active_tokens()
+async def notify_new_post(post_title: str, post_id: str, source_type: str, user_id: Optional[str] = None) -> None:
+    """Notify all active tokens (or user specific devices if user_id is provided) about a new post"""
+    tokens = await get_active_tokens(user_id)
     if not tokens:
         return
     

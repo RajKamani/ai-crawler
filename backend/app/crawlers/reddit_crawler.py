@@ -2,7 +2,7 @@ import logging
 import httpx
 import praw
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from app.config import settings
 from app.database import supabase
 from app.crawlers.base import BaseCrawler
@@ -47,7 +47,7 @@ class RedditCrawler(BaseCrawler):
             posts = await self._fetch_reddit_posts(sub_name)
             for post in posts:
                 found_count += 1
-                if await self.is_duplicate(post["url"]):
+                if await self.is_duplicate(post["url"], source["id"]):
                     continue
 
                 # Global subreddits apply strict keyword filtering
@@ -72,32 +72,33 @@ class RedditCrawler(BaseCrawler):
             logger.error(f"Error in crawl_global for subreddit r/{sub_name}: {e}")
         return found_count, saved_count
 
-    async def crawl_user_subreddits(self):
-        """Crawl all active user-added subreddits (unfiltered)"""
-        logger.info("Crawling user custom subreddits...")
+    async def crawl_user_subreddits(self, user_id: str):
+        """Crawl all active user-added subreddits for a specific user (unfiltered)"""
+        logger.info(f"Crawling user custom subreddits for user {user_id}...")
         total_found = 0
         total_saved = 0
         try:
             result = supabase.table("user_subreddits") \
                 .select("subreddit_name") \
+                .eq("user_id", user_id) \
                 .eq("is_active", True) \
                 .execute()
             
             if not result.data:
-                logger.info("No active user custom subreddits found.")
+                logger.info(f"No active user custom subreddits found for user {user_id}.")
                 return 0, 0
 
-            # Deduplicate subreddits across users
+            # Deduplicate subreddits
             unique_subs = set(row["subreddit_name"].lower().replace("r/", "").strip() for row in result.data)
             
             for sub_name in unique_subs:
                 try:
-                    source_id = await self._get_or_create_source(f"r/{sub_name}", f"r/{sub_name}")
+                    source_id = await self._get_or_create_source(f"r/{sub_name}", f"r/{sub_name}", user_id=user_id)
                     posts = await self._fetch_reddit_posts(sub_name)
                     
                     for post in posts:
                         total_found += 1
-                        if not await self.is_duplicate(post["url"]):
+                        if not await self.is_duplicate(post["url"], source_id):
                             comments = await self._fetch_comments_for_post(post)
                             post["raw_data"]["comments"] = comments
                             # No keyword filter for user custom subreddits
@@ -113,12 +114,13 @@ class RedditCrawler(BaseCrawler):
                             if res:
                                 total_saved += 1
                 except Exception as e:
-                    logger.error(f"Error crawling user subreddit r/{sub_name}: {e}")
+                    logger.error(f"Error crawling user subreddit r/{sub_name} for user {user_id}: {e}")
 
-            # Update last_crawled_at for all user subreddits
+            # Update last_crawled_at for this user's subreddits
             now_iso = datetime.utcnow().isoformat() + "Z"
             supabase.table("user_subreddits") \
                 .update({"last_crawled_at": now_iso}) \
+                .eq("user_id", user_id) \
                 .eq("is_active", True) \
                 .execute()
 
@@ -293,23 +295,33 @@ class RedditCrawler(BaseCrawler):
                 
         return comments_data
 
-    async def _get_or_create_source(self, name: str, sub_path: str) -> str:
+    async def _get_or_create_source(self, name: str, sub_path: str, user_id: Optional[str] = None) -> str:
         """Find existing source or create new one for user subreddit"""
-        res = supabase.table("sources") \
+        query = supabase.table("sources") \
             .select("id") \
             .eq("url", sub_path) \
-            .eq("type", "reddit") \
-            .execute()
+            .eq("type", "reddit")
+        
+        if user_id:
+            query = query.eq("user_id", user_id)
+        else:
+            query = query.is_("user_id", "null")
+            
+        res = query.execute()
         
         if res.data:
             return res.data[0]["id"]
         
         # Create a new source record in database
-        new_source = supabase.table("sources").insert({
+        insert_data = {
             "name": name,
             "type": "reddit",
             "url": sub_path,
             "is_active": True,
             "crawl_frequency_minutes": 45
-        }).execute()
+        }
+        if user_id:
+            insert_data["user_id"] = user_id
+            
+        new_source = supabase.table("sources").insert(insert_data).execute()
         return new_source.data[0]["id"]

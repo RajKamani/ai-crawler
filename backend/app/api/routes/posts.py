@@ -32,17 +32,40 @@ async def get_posts(
     try:
         offset = (page - 1) * limit
         
+        # Fetch active sources that are either global or belong to the user
+        if user:
+            sources_query = supabase.table("sources").select("id")
+            sources_query.params = sources_query.params.add("or", f"(user_id.is.null,user_id.eq.{user.id})")
+            sources_res = sources_query.execute()
+        else:
+            sources_res = supabase.table("sources") \
+                .select("id") \
+                .is_("user_id", "null") \
+                .execute()
+        
+        allowed_source_ids = [s["id"] for s in sources_res.data]
+        if not allowed_source_ids:
+            return {"posts": [], "page": page, "limit": limit, "count": 0}
+
         # Build query
-        # Fetch post list with parent source info
         base_query = supabase.table("posts").select("*, sources(name, type)")
         
-        # 0. Source ID filtering
+        # 0. Source ID filtering (verify user has access to it)
         if source_id:
-            base_query = base_query.eq("source_id", source_id)
+            if source_id in allowed_source_ids:
+                base_query = base_query.eq("source_id", source_id)
+            else:
+                return {"posts": [], "page": page, "limit": limit, "count": 0}
+        else:
+            base_query = base_query.in_("source_id", allowed_source_ids)
 
         # 1. Type filtering (blog, reddit, github)
         if type:
-            source_res = supabase.table("sources").select("id").eq("type", type).execute()
+            source_res = supabase.table("sources") \
+                .select("id") \
+                .eq("type", type) \
+                .in_("id", allowed_source_ids) \
+                .execute()
             source_ids = [s["id"] for s in source_res.data]
             base_query = base_query.in_("source_id", source_ids)
 
@@ -123,6 +146,7 @@ async def get_personalized_feed(
         global_sources_res = supabase.table("sources") \
             .select("id") \
             .eq("is_active", True) \
+            .is_("user_id", "null") \
             .execute()
         source_ids = [s["id"] for s in global_sources_res.data]
 
@@ -138,6 +162,7 @@ async def get_personalized_feed(
             sub_sources_res = supabase.table("sources") \
                 .select("id") \
                 .eq("type", "reddit") \
+                .eq("user_id", user.id) \
                 .in_("url", sub_names) \
                 .execute()
             source_ids.extend([s["id"] for s in sub_sources_res.data])
@@ -154,6 +179,7 @@ async def get_personalized_feed(
             blog_sources_res = supabase.table("sources") \
                 .select("id") \
                 .eq("type", "blog") \
+                .eq("user_id", user.id) \
                 .in_("url", blog_urls) \
                 .execute()
             source_ids.extend([s["id"] for s in blog_sources_res.data])
@@ -216,11 +242,11 @@ async def get_personalized_feed(
 async def get_active_feed_sources(user = Depends(get_current_user)):
     """Get all active feed sources (global seeded sources + user custom sources)"""
     try:
-        res = supabase.table("sources") \
-            .select("id, name, type") \
-            .eq("is_active", True) \
-            .order("name") \
-            .execute()
+        query = supabase.table("sources") \
+            .select("id, name, type, user_id") \
+            .eq("is_active", True)
+        query.params = query.params.add("or", f"(user_id.is.null,user_id.eq.{user.id})")
+        res = query.order("name").execute()
         return {"sources": res.data}
     except Exception as e:
         logger.error(f"Error fetching active sources: {e}")

@@ -14,13 +14,13 @@ class BaseCrawler(ABC):
     async def crawl(self, *args, **kwargs):
         pass
 
-    async def is_duplicate(self, url: str) -> bool:
-        """Check if post URL already exists in database"""
+    async def is_duplicate(self, url: str, source_id: str) -> bool:
+        """Check if post URL already exists in database for this source"""
         try:
-            res = supabase.table("posts").select("id").eq("url", url).execute()
+            res = supabase.table("posts").select("id").eq("url", url).eq("source_id", source_id).execute()
             return len(res.data) > 0
         except Exception as e:
-            logger.error(f"Error checking duplicates for {url}: {e}")
+            logger.error(f"Error checking duplicates for {url} on source {source_id}: {e}")
             return False
 
     async def save_post(self, title: str, content: str, url: str, author: str, published_at: Any, source_id: str, raw_data: Optional[Dict] = None) -> Optional[Dict]:
@@ -64,11 +64,13 @@ class BaseCrawler(ABC):
                     
                     # Run fetch and notify in background
                     async def fetch_and_notify(sid, title, pid):
-                        source_res = supabase.table("sources").select("type").eq("id", sid).execute()
+                        source_res = supabase.table("sources").select("type", "user_id").eq("id", sid).execute()
                         stype = "post"
+                        user_id = None
                         if source_res.data:
                             stype = source_res.data[0].get("type", "post")
-                        await notify_new_post(title, pid, stype)
+                            user_id = source_res.data[0].get("user_id")
+                        await notify_new_post(title, pid, stype, user_id=user_id)
 
                     asyncio.create_task(fetch_and_notify(source_id, title, saved_post["id"]))
                 except Exception as notify_err:

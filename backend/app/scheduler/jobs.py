@@ -1,6 +1,7 @@
 import logging
 import asyncio
 from datetime import datetime
+from typing import Optional
 # pyrefly: ignore [missing-import]
 from apscheduler.schedulers.background import BackgroundScheduler
 # pyrefly: ignore [missing-import]
@@ -37,12 +38,13 @@ def run_async(coro):
     finally:
         loop.close()
 
-def start_crawl_log(crawler_name: str) -> str:
+def start_crawl_log(crawler_name: str, user_id: Optional[str] = None) -> str:
     """Create a new crawl log entry with status 'running' and return its ID"""
     try:
         res = supabase.table("crawl_logs").insert({
             "crawler_name": crawler_name,
-            "status": "running"
+            "status": "running",
+            "user_id": user_id
         }).execute()
         if res.data:
             return res.data[0]["id"]
@@ -93,15 +95,15 @@ def job_crawl_blog_global(log_id: str = None):
         logger.error(f"Error in job_crawl_blog_global: {e}")
         finish_crawl_log(log_id, "failed", total_found, total_saved, str(e))
 
-def job_crawl_blog_user(log_id: str = None):
-    logger.info("Starting user blog crawling job...")
+def job_crawl_blog_user(user_id: str, log_id: str = None):
+    logger.info(f"Starting user blog crawling job for user {user_id}...")
     if not log_id:
-        log_id = start_crawl_log("blog_user")
+        log_id = start_crawl_log("blog_user", user_id=user_id)
     try:
-        found, saved = run_async(blog_crawler.crawl_user_blogs())
+        found, saved = run_async(blog_crawler.crawl_user_blogs(user_id))
         finish_crawl_log(log_id, "success", found, saved)
     except Exception as e:
-        logger.error(f"Error in job_crawl_blog_user: {e}")
+        logger.error(f"Error in job_crawl_blog_user for user {user_id}: {e}")
         finish_crawl_log(log_id, "failed", 0, 0, str(e))
 
 def job_crawl_reddit_global(log_id: str = None):
@@ -127,15 +129,15 @@ def job_crawl_reddit_global(log_id: str = None):
         logger.error(f"Error in job_crawl_reddit_global: {e}")
         finish_crawl_log(log_id, "failed", total_found, total_saved, str(e))
 
-def job_crawl_reddit_user(log_id: str = None):
-    logger.info("Starting user reddit crawling job...")
+def job_crawl_reddit_user(user_id: str, log_id: str = None):
+    logger.info(f"Starting user reddit crawling job for user {user_id}...")
     if not log_id:
-        log_id = start_crawl_log("reddit_user")
+        log_id = start_crawl_log("reddit_user", user_id=user_id)
     try:
-        found, saved = run_async(reddit_crawler.crawl_user_subreddits())
+        found, saved = run_async(reddit_crawler.crawl_user_subreddits(user_id))
         finish_crawl_log(log_id, "success", found, saved)
     except Exception as e:
-        logger.error(f"Error in job_crawl_reddit_user: {e}")
+        logger.error(f"Error in job_crawl_reddit_user for user {user_id}: {e}")
         finish_crawl_log(log_id, "failed", 0, 0, str(e))
 
 def job_crawl_github_trending(log_id: str = None):
@@ -208,42 +210,77 @@ def sync_scheduler_intervals():
     """
     logger.info("Syncing crawler schedules with database...")
     try:
+        # 1. Fetch crawler settings
         res = supabase.table("crawler_settings").select("*").execute()
         if not res.data:
             logger.warning("No crawler settings found in database.")
             return
 
+        global_settings = {}
+        user_settings = {}
         for row in res.data:
-            name = row["crawler_name"]
+            cname = row["crawler_name"]
+            uid = row.get("user_id")
+            if uid is None:
+                global_settings[cname] = row
+            else:
+                user_settings[(cname, uid)] = row
+
+        # Helper to deactivate one-shot in DB if expired
+        def check_and_deactivate_oneshot(row):
             interval = row["interval_minutes"]
             is_active = row["is_active"]
-
-            if name not in JOB_MAPPING:
-                continue
-
-            # Check if one-shot date schedule is in the past
+            name = row["crawler_name"]
+            uid = row.get("user_id")
             if is_active and interval >= 1000000:
                 run_timestamp = interval * 60
                 run_date = datetime.fromtimestamp(run_timestamp)
                 if run_date <= datetime.now():
-                    logger.info(f"One-shot schedule {run_date} for {name} is in the past. Deactivating in database.")
+                    logger.info(f"One-shot schedule {run_date} for {name} (user: {uid}) is in the past. Deactivating.")
                     try:
-                        supabase.table("crawler_settings") \
-                            .update({"is_active": False}) \
-                            .eq("crawler_name", name) \
-                            .execute()
+                        q = supabase.table("crawler_settings").update({"is_active": False}).eq("crawler_name", name)
+                        if uid:
+                            q = q.eq("user_id", uid)
+                        else:
+                            q = q.is_("user_id", "null")
+                        q.execute()
                     except Exception as db_err:
                         logger.error(f"Failed to auto-deactivate one-shot job {name}: {db_err}")
-                    is_active = False
+                    row["is_active"] = False
+            return row["is_active"]
 
+        # Update and check global settings
+        for cname in global_settings:
+            check_and_deactivate_oneshot(global_settings[cname])
+        for key in user_settings:
+            check_and_deactivate_oneshot(user_settings[key])
+
+        # 2. Fetch active user list
+        # Distinct user_ids with active subreddits
+        sub_users_res = supabase.table("user_subreddits").select("user_id").eq("is_active", True).execute()
+        active_sub_users = set(row["user_id"] for row in sub_users_res.data if row.get("user_id"))
+
+        # Distinct user_ids with active blogs
+        blog_users_res = supabase.table("user_blogs").select("user_id").eq("is_active", True).execute()
+        active_blog_users = set(row["user_id"] for row in blog_users_res.data if row.get("user_id"))
+
+        # Keep track of scheduled job IDs so we can remove stale ones later
+        scheduled_job_ids = set()
+
+        # 3. Schedule Global Jobs
+        global_crawlers = ["blog_global", "reddit_global", "github_trending"]
+        for name in global_crawlers:
+            if name not in global_settings:
+                continue
+            g_row = global_settings[name]
+            interval = g_row["interval_minutes"]
+            is_active = g_row["is_active"]
+            
             job_func, desc = JOB_MAPPING[name]
             job_id = f"job_{name}"
-
-            # Check if job exists in scheduler
+            
             existing_job = scheduler.get_job(job_id)
-
             if existing_job:
-                # If settings changed, reschedule or remove
                 current = current_schedules.get(name, {})
                 if current.get("interval") != interval or current.get("is_active") != is_active:
                     if not is_active:
@@ -251,16 +288,12 @@ def sync_scheduler_intervals():
                         scheduler.remove_job(job_id)
                         current_schedules[name] = {"interval": interval, "is_active": False}
                     else:
-                        logger.info(f"Rescheduling crawler job: {name} (interval/value: {interval})")
-                        scheduler.reschedule_job(
-                            job_id,
-                            trigger=get_trigger_for_interval(interval, name)
-                        )
+                        logger.info(f"Rescheduling crawler job: {name} to {interval}m")
+                        scheduler.reschedule_job(job_id, trigger=get_trigger_for_interval(interval, name))
                         current_schedules[name] = {"interval": interval, "is_active": True}
             else:
-                # If job doesn't exist but is active, add it
                 if is_active:
-                    logger.info(f"Adding crawler job: {name} (interval/value: {interval})")
+                    logger.info(f"Adding crawler job: {name} (interval: {interval}m)")
                     scheduler.add_job(
                         job_func,
                         trigger=get_trigger_for_interval(interval, name),
@@ -271,6 +304,104 @@ def sync_scheduler_intervals():
                     current_schedules[name] = {"interval": interval, "is_active": True}
                 else:
                     current_schedules[name] = {"interval": interval, "is_active": False}
+            
+            if is_active:
+                scheduled_job_ids.add(job_id)
+
+        # 4. Schedule User blog crawler jobs
+        blog_global_setting = global_settings.get("blog_user", {"interval_minutes": 90, "is_active": True})
+        for uid in active_blog_users:
+            u_setting = user_settings.get(("blog_user", uid))
+            if u_setting:
+                interval = u_setting["interval_minutes"]
+                is_active = u_setting["is_active"]
+            else:
+                interval = blog_global_setting["interval_minutes"]
+                is_active = blog_global_setting["is_active"]
+
+            job_id = f"job_blog_user_{uid}"
+            
+            if is_active:
+                existing_job = scheduler.get_job(job_id)
+                if existing_job:
+                    # Check if interval changed
+                    current_key = f"blog_user_{uid}"
+                    current = current_schedules.get(current_key, {})
+                    if current.get("interval") != interval:
+                        logger.info(f"Rescheduling user blog job: {job_id} to {interval}m")
+                        scheduler.reschedule_job(job_id, trigger=get_trigger_for_interval(interval, f"blog_user for {uid}"))
+                        current_schedules[current_key] = {"interval": interval, "is_active": True}
+                else:
+                    logger.info(f"Adding user blog job: {job_id} (interval: {interval}m)")
+                    scheduler.add_job(
+                        job_crawl_blog_user,
+                        trigger=get_trigger_for_interval(interval, f"blog_user for {uid}"),
+                        id=job_id,
+                        name=f"Crawl RSS blogs for user {uid}",
+                        kwargs={"user_id": uid},
+                        replace_existing=True
+                    )
+                    current_schedules[f"blog_user_{uid}"] = {"interval": interval, "is_active": True}
+                scheduled_job_ids.add(job_id)
+            else:
+                # If scheduled but deactivated
+                if scheduler.get_job(job_id):
+                    scheduler.remove_job(job_id)
+                    current_schedules[f"blog_user_{uid}"] = {"interval": interval, "is_active": False}
+
+        # 5. Schedule User reddit crawler jobs
+        reddit_global_setting = global_settings.get("reddit_user", {"interval_minutes": 45, "is_active": True})
+        for uid in active_sub_users:
+            u_setting = user_settings.get(("reddit_user", uid))
+            if u_setting:
+                interval = u_setting["interval_minutes"]
+                is_active = u_setting["is_active"]
+            else:
+                interval = reddit_global_setting["interval_minutes"]
+                is_active = reddit_global_setting["is_active"]
+
+            job_id = f"job_reddit_user_{uid}"
+            
+            if is_active:
+                existing_job = scheduler.get_job(job_id)
+                if existing_job:
+                    # Check if interval changed
+                    current_key = f"reddit_user_{uid}"
+                    current = current_schedules.get(current_key, {})
+                    if current.get("interval") != interval:
+                        logger.info(f"Rescheduling user reddit job: {job_id} to {interval}m")
+                        scheduler.reschedule_job(job_id, trigger=get_trigger_for_interval(interval, f"reddit_user for {uid}"))
+                        current_schedules[current_key] = {"interval": interval, "is_active": True}
+                else:
+                    logger.info(f"Adding user reddit job: {job_id} (interval: {interval}m)")
+                    scheduler.add_job(
+                        job_crawl_reddit_user,
+                        trigger=get_trigger_for_interval(interval, f"reddit_user for {uid}"),
+                        id=job_id,
+                        name=f"Crawl subreddits for user {uid}",
+                        kwargs={"user_id": uid},
+                        replace_existing=True
+                    )
+                    current_schedules[f"reddit_user_{uid}"] = {"interval": interval, "is_active": True}
+                scheduled_job_ids.add(job_id)
+            else:
+                # If scheduled but deactivated
+                if scheduler.get_job(job_id):
+                    scheduler.remove_job(job_id)
+                    current_schedules[f"reddit_user_{uid}"] = {"interval": interval, "is_active": False}
+
+        # 6. Remove any dynamic user jobs that are no longer active
+        for job in scheduler.get_jobs():
+            jid = job.id
+            if (jid.startswith("job_blog_user_") or jid.startswith("job_reddit_user_")) and jid not in scheduled_job_ids:
+                logger.info(f"Removing obsolete user crawler job: {jid}")
+                scheduler.remove_job(jid)
+                if jid.startswith("job_blog_user_"):
+                    uid = jid.replace("job_blog_user_", "")
+                    current_schedules.pop(f"blog_user_{uid}", None)
+                elif jid.startswith("job_reddit_user_"):
+                    uid = jid.replace("job_reddit_user_", "")
+                    current_schedules.pop(f"reddit_user_{uid}", None)
 
     except Exception as e:
         logger.error(f"Error syncing scheduler intervals: {e}")

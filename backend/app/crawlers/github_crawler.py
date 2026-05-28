@@ -234,7 +234,7 @@ class GitHubCrawler(BaseCrawler):
             
             found_count += 1
             
-            if await self.is_duplicate(repo_url):
+            if await self.is_duplicate(repo_url, source["id"]):
                 continue
 
             parts = title.split('/')
@@ -287,7 +287,7 @@ class GitHubCrawler(BaseCrawler):
 
             found_count += 1
             repo_url = f"https://github.com/{title}"
-            if await self.is_duplicate(repo_url):
+            if await self.is_duplicate(repo_url, source["id"]):
                 continue
 
             container = a.find_parent("div", class_=lambda x: x and "flex-col" in x)

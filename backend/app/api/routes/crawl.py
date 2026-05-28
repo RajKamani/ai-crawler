@@ -33,13 +33,19 @@ async def trigger_crawl(
     crawler_name = body.crawler
 
     # Start the log synchronously to get a log_id
-    log_id = start_crawl_log(crawler_name)
+    if crawler_name in ["blog_user", "reddit_user"]:
+        log_id = start_crawl_log(crawler_name, user_id=user.id)
+    else:
+        log_id = start_crawl_log(crawler_name)
     if not log_id:
         raise HTTPException(500, "Failed to initialize crawl log")
 
     # Queue job function in background
     job_func = CRAWLER_JOBS[crawler_name]
-    background_tasks.add_task(job_func, log_id)
+    if crawler_name in ["blog_user", "reddit_user"]:
+        background_tasks.add_task(job_func, user_id=user.id, log_id=log_id)
+    else:
+        background_tasks.add_task(job_func, log_id)
 
     return {
         "crawler": crawler_name,
@@ -52,11 +58,9 @@ async def trigger_crawl(
 async def get_crawl_logs(limit: int = 20, user = Depends(get_current_user)):
     """Fetch recent crawler execution logs"""
     try:
-        res = supabase.table("crawl_logs") \
-            .select("*") \
-            .order("started_at", desc=True) \
-            .range(0, limit - 1) \
-            .execute()
+        query = supabase.table("crawl_logs").select("*")
+        query.params = query.params.add("or", f"(user_id.is.null,user_id.eq.{user.id})")
+        res = query.order("started_at", desc=True).range(0, limit - 1).execute()
         return {"logs": res.data, "count": len(res.data)}
     except Exception as e:
         logger.error(f"Error fetching crawl logs: {e}")

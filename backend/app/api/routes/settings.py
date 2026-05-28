@@ -9,13 +9,22 @@ logger = logging.getLogger(__name__)
 
 @router.get("/crawlers")
 async def get_crawler_settings(user = Depends(get_current_user)):
-    """Fetch all crawler schedule configurations"""
+    """Fetch all crawler schedule configurations, showing user-specific values when overridden"""
     try:
-        res = supabase.table("crawler_settings") \
-            .select("*") \
-            .order("crawler_name") \
-            .execute()
-        return {"settings": res.data, "count": len(res.data)}
+        # Fetch both global settings and user settings
+        query = supabase.table("crawler_settings").select("*")
+        query.params = query.params.add("or", f"(user_id.is.null,user_id.eq.{user.id})")
+        res = query.execute()
+        
+        # Merge settings (user-specific overrides global)
+        merged = {}
+        for row in res.data:
+            cname = row["crawler_name"]
+            # If not in merged yet, or if this row has user_id, set it
+            if cname not in merged or row["user_id"] is not None:
+                merged[cname] = row
+                
+        return {"settings": list(merged.values()), "count": len(merged)}
     except Exception as e:
         logger.error(f"Error fetching crawler settings: {e}")
         raise HTTPException(500, f"Failed to fetch settings: {str(e)}")
@@ -40,13 +49,40 @@ async def update_crawler_setting(
     updates["updated_at"] = "now()"
 
     try:
-        res = supabase.table("crawler_settings") \
-            .update(updates) \
+        # Try to find user-specific setting first
+        user_res = supabase.table("crawler_settings") \
+            .select("*") \
             .eq("crawler_name", name) \
+            .eq("user_id", user.id) \
             .execute()
         
-        if not res.data:
-            raise HTTPException(404, f"Crawler settings for '{name}' not found")
+        if user_res.data:
+            # Update existing user setting
+            res = supabase.table("crawler_settings") \
+                .update(updates) \
+                .eq("crawler_name", name) \
+                .eq("user_id", user.id) \
+                .execute()
+        else:
+            # Create a user-specific setting, starting with values from global setting
+            global_res = supabase.table("crawler_settings") \
+                .select("*") \
+                .eq("crawler_name", name) \
+                .is_("user_id", "null") \
+                .execute()
+            
+            if not global_res.data:
+                raise HTTPException(404, f"Crawler settings for '{name}' not found")
+            
+            global_row = global_res.data[0]
+            # Merge with updates
+            new_row = {
+                "crawler_name": name,
+                "user_id": user.id,
+                "interval_minutes": updates.get("interval_minutes", global_row["interval_minutes"]),
+                "is_active": updates.get("is_active", global_row["is_active"])
+            }
+            res = supabase.table("crawler_settings").insert(new_row).execute()
         
         return {
             "setting": res.data[0], 
@@ -55,3 +91,4 @@ async def update_crawler_setting(
     except Exception as e:
         logger.error(f"Error updating crawler setting for {name}: {e}")
         raise HTTPException(500, f"Failed to update database setting: {str(e)}")
+
