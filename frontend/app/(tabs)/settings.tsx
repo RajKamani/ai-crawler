@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, Pressable, ScrollView, Switch } from 'react-native';
+import { StyleSheet, View, Text, Pressable, ScrollView, Switch, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { Link } from 'expo-router';
@@ -14,6 +14,7 @@ interface SettingsMenuItemProps {
   subtitle: string;
   href: any;
   isFontAwesome?: boolean;
+  isLast?: boolean;
 }
 
 const SettingsMenuItem: React.FC<SettingsMenuItemProps> = ({
@@ -23,11 +24,12 @@ const SettingsMenuItem: React.FC<SettingsMenuItemProps> = ({
   subtitle,
   href,
   isFontAwesome = false,
+  isLast = false,
 }) => {
   const colors = useTheme();
   return (
     <Link href={href} asChild>
-      <Pressable style={[styles.menuItem, { borderBottomColor: colors.border }]}>
+      <Pressable style={[styles.menuItem, { borderBottomColor: colors.border }, isLast && { borderBottomWidth: 0 }]}>
         <View style={[styles.iconContainer, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
           {isFontAwesome ? (
             <FontAwesome5 name={icon} size={16} color={colors.text} />
@@ -91,11 +93,12 @@ export default function SettingsHubScreen() {
             subtitle="Add and validate custom blog feeds"
             href="/settings/blogs"
             isFontAwesome={true}
+            isLast={true}
           />
         </View>
 
         {/* Menu Section: Preferences */}
-        <Text style={[styles.sectionTitle, { color: colors.primary }]}>Schedules & Saves</Text>
+        <Text style={[styles.sectionTitle, { color: colors.primary }]}>Preferences & Saves</Text>
         <View style={[styles.menuGroup, { backgroundColor: colors.background, borderColor: colors.border }]}>
           <SettingsMenuItem
             icon="timer-outline"
@@ -111,28 +114,22 @@ export default function SettingsHubScreen() {
             subtitle="View your saved articles & repos"
             href="/settings/bookmarks"
           />
-        </View>
-
-        {/* Menu Section: Appearance */}
-        <Text style={[styles.sectionTitle, { color: colors.primary }]}>Appearance</Text>
-        <View style={[styles.menuGroup, { backgroundColor: colors.background, borderColor: colors.border }]}>
           <View style={[styles.menuItem, { borderBottomWidth: 0, justifyContent: 'space-between', alignItems: 'center' }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-              <View style={[styles.iconContainer, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
-                <Ionicons name={theme === 'dark' ? 'moon' : 'sunny'} size={18} color={colors.text} />
-              </View>
-              <View style={styles.textContainer}>
-                <Text style={[styles.menuTitle, { color: colors.text }]}>DARK MODE</Text>
-                <Text style={[styles.menuSubtitle, { color: colors.tabIconDefault }]}>
-                  {theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-                </Text>
-              </View>
+            <View style={[styles.iconContainer, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
+              <Ionicons name={theme === 'dark' ? 'moon' : 'sunny'} size={18} color={colors.text} />
+            </View>
+            <View style={styles.textContainer}>
+              <Text style={[styles.menuTitle, { color: colors.text }]}>DARK MODE</Text>
+              <Text style={[styles.menuSubtitle, { color: colors.tabIconDefault }]}>
+                {theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              </Text>
             </View>
             <Switch
               value={theme === 'dark'}
               onValueChange={toggleTheme}
               trackColor={{ false: theme === 'dark' ? '#2c2b2b' : '#dcd9d9', true: theme === 'dark' ? 'rgba(255, 79, 79, 0.3)' : 'rgba(188, 0, 10, 0.3)' }}
               thumbColor={theme === 'dark' ? colors.primary : colors.tabIconDefault}
+              style={Platform.OS === 'web' ? { marginLeft: 10 } : null}
             />
           </View>
         </View>
