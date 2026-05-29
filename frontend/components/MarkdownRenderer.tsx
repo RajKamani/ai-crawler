@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface MarkdownRendererProps {
@@ -138,12 +138,32 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) =
   );
 };
 
-// Parser to support **bold**, *italic*, and `inline code` formatting
+// Parser to support **bold**, *italic*, `inline code`, and [link](url) formatting
 function renderTextWithInlineStyles(text: string) {
-  const regex = /(\*\*.*?\*\*|\*.*?\*|`.*?`)/g;
+  const regex = /(\[.*?\]\(.+?\)|\*\*.*?\*\*|\*.*?\*|`.*?`)/g;
   const matches = text.split(regex);
 
   return matches.map((part, idx) => {
+    if (part.startsWith('[') && part.includes('](') && part.endsWith(')')) {
+      const closeBracketIdx = part.indexOf('](');
+      const linkText = part.slice(1, closeBracketIdx);
+      const url = part.slice(closeBracketIdx + 2, -1);
+      return (
+        <Text
+          key={idx}
+          style={styles.linkText}
+          onPress={() => {
+            if (url.startsWith('http')) {
+              Linking.openURL(url).catch((err) =>
+                console.error('Failed to open link:', err)
+              );
+            }
+          }}
+        >
+          {linkText}
+        </Text>
+      );
+    }
     if (part.startsWith('**') && part.endsWith('**')) {
       return (
         <Text key={idx} style={styles.boldText}>
@@ -261,5 +281,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#bc000a',
     lineHeight: 18,
+  },
+  linkText: {
+    fontFamily: 'SpaceMono-Bold',
+    color: '#bc000a',
+    textDecorationLine: 'underline',
   },
 });
