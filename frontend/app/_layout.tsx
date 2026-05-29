@@ -1,5 +1,5 @@
 import { useFonts } from 'expo-font';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
@@ -9,6 +9,7 @@ import { ActivityIndicator, View } from 'react-native';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { AuthProvider, useAuth } from '../context/AuthContext';
+import { ThemeProvider, useThemeContext } from '../context/ThemeContext';
 import { AuthScreen } from '../components/AuthScreen';
 import { supabase } from '../utils/supabase';
 import { API_BASE_URL } from '../constants/Config';
@@ -85,12 +86,14 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <RootLayoutNav />
+      <ThemeProvider>
+        <RootLayoutNav />
+      </ThemeProvider>
     </AuthProvider>
   );
 }
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
+  const { theme } = useThemeContext();
   const colors = useTheme();
   const { session, isLoading } = useAuth();
 
@@ -108,7 +111,7 @@ function RootLayoutNav() {
 
   return (
     <SafeAreaProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <NavigationThemeProvider value={theme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="settings" options={{ headerShown: false }} />
@@ -125,7 +128,7 @@ function RootLayoutNav() {
           />
           <Stack.Screen name="+not-found" />
         </Stack>
-      </ThemeProvider>
+      </NavigationThemeProvider>
     </SafeAreaProvider>
   );
 }

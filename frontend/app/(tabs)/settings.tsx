@@ -1,10 +1,11 @@
 import React from 'react';
-import { StyleSheet, View, Text, Pressable, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, Pressable, ScrollView, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '@/hooks/useTheme';
+import { useThemeContext } from '../../context/ThemeContext';
 
 interface SettingsMenuItemProps {
   icon: string;
@@ -47,6 +48,7 @@ const SettingsMenuItem: React.FC<SettingsMenuItemProps> = ({
 export default function SettingsHubScreen() {
   const { user, signOut } = useAuth();
   const colors = useTheme();
+  const { theme, toggleTheme } = useThemeContext();
   const email = user?.email || 'mock-user@local.host';
   const username = email.split('@')[0].toUpperCase();
 
@@ -109,6 +111,30 @@ export default function SettingsHubScreen() {
             subtitle="View your saved articles & repos"
             href="/settings/bookmarks"
           />
+        </View>
+
+        {/* Menu Section: Appearance */}
+        <Text style={[styles.sectionTitle, { color: colors.primary }]}>Appearance</Text>
+        <View style={[styles.menuGroup, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          <View style={[styles.menuItem, { borderBottomWidth: 0, justifyContent: 'space-between', alignItems: 'center' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+              <View style={[styles.iconContainer, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
+                <Ionicons name={theme === 'dark' ? 'moon' : 'sunny'} size={18} color={colors.text} />
+              </View>
+              <View style={styles.textContainer}>
+                <Text style={[styles.menuTitle, { color: colors.text }]}>DARK MODE</Text>
+                <Text style={[styles.menuSubtitle, { color: colors.tabIconDefault }]}>
+                  {theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={theme === 'dark'}
+              onValueChange={toggleTheme}
+              trackColor={{ false: theme === 'dark' ? '#2c2b2b' : '#dcd9d9', true: theme === 'dark' ? 'rgba(255, 79, 79, 0.3)' : 'rgba(188, 0, 10, 0.3)' }}
+              thumbColor={theme === 'dark' ? colors.primary : colors.tabIconDefault}
+            />
+          </View>
         </View>
 
         {/* Info Card */}

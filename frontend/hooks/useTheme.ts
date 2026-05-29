@@ -1,7 +1,8 @@
-import { useColorScheme } from '@/components/useColorScheme';
+import { useThemeContext } from '@/context/ThemeContext';
 import Colors from '@/constants/Colors';
 
 export function useTheme() {
-  const scheme = useColorScheme();
-  return Colors[scheme];
+  const { theme } = useThemeContext();
+  return Colors[theme];
 }
+
