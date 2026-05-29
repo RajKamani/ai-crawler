@@ -137,7 +137,7 @@ export default function CrawlerSettingsScreen() {
 
     setUpdatingName(schedule.crawler_name);
     try {
-      await updateSchedule(schedule.crawler_name, newInterval, undefined);
+      await updateSchedule(schedule.crawler_name, newInterval, schedule.is_active);
     } catch (err) {
       console.error('Error adjusting interval:', err);
       showAlert('Update Failed', err instanceof Error ? err.message : String(err));
@@ -158,7 +158,9 @@ export default function CrawlerSettingsScreen() {
         tomorrow.setDate(tomorrow.getDate() + 1);
         defaultVal = encodeDateTime(tomorrow);
       }
-      await updateSchedule(name, defaultVal, undefined);
+      const currentSchedule = schedules.find(s => s.crawler_name === name);
+      const currentIsActive = currentSchedule ? currentSchedule.is_active : true;
+      await updateSchedule(name, defaultVal, currentIsActive);
     } catch (err) {
       console.error('Error changing mode:', err);
       showAlert('Mode Change Failed', err instanceof Error ? err.message : String(err));
@@ -178,13 +180,15 @@ export default function CrawlerSettingsScreen() {
     const crawlerName = activePickerCrawler;
     if (!crawlerName) return;
 
+    const currentIsActive = schedules.find(s => s.crawler_name === crawlerName)?.is_active ?? true;
+
     if (getScheduleMode(schedules.find(s => s.crawler_name === crawlerName)?.interval_minutes || 0) === 'daily') {
       // Daily time mode - simple
       setActivePickerCrawler(null);
       setUpdatingName(crawlerName);
       try {
         const encoded = encodeDailyTime(selectedValue.getHours(), selectedValue.getMinutes());
-        await updateSchedule(crawlerName, encoded, undefined);
+        await updateSchedule(crawlerName, encoded, currentIsActive);
       } catch (err) {
         console.error('Error saving daily time:', err);
         showAlert('Save Failed', err instanceof Error ? err.message : String(err));
@@ -211,7 +215,7 @@ export default function CrawlerSettingsScreen() {
 
         try {
           const encoded = encodeDateTime(mergedDate);
-          await updateSchedule(crawlerName, encoded, undefined);
+          await updateSchedule(crawlerName, encoded, currentIsActive);
         } catch (err) {
           console.error('Error saving date/time:', err);
           showAlert('Save Failed', err instanceof Error ? err.message : String(err));
@@ -252,10 +256,12 @@ export default function CrawlerSettingsScreen() {
     const m = parseInt(mStr, 10);
     if (isNaN(h) || isNaN(m)) return;
 
+    const currentIsActive = schedules.find(s => s.crawler_name === crawlerName)?.is_active ?? true;
+
     setUpdatingName(crawlerName);
     try {
       const encoded = encodeDailyTime(h, m);
-      await updateSchedule(crawlerName, encoded, undefined);
+      await updateSchedule(crawlerName, encoded, currentIsActive);
     } catch (err) {
       console.error('Error updating web time:', err);
       showAlert('Update Failed', err instanceof Error ? err.message : String(err));
@@ -269,10 +275,12 @@ export default function CrawlerSettingsScreen() {
     const date = new Date(dateTimeString);
     if (isNaN(date.getTime())) return;
 
+    const currentIsActive = schedules.find(s => s.crawler_name === crawlerName)?.is_active ?? true;
+
     setUpdatingName(crawlerName);
     try {
       const encoded = encodeDateTime(date);
-      await updateSchedule(crawlerName, encoded, undefined);
+      await updateSchedule(crawlerName, encoded, currentIsActive);
     } catch (err) {
       console.error('Error updating web datetime:', err);
       showAlert('Update Failed', err instanceof Error ? err.message : String(err));
@@ -280,6 +288,7 @@ export default function CrawlerSettingsScreen() {
       setUpdatingName(null);
     }
   };
+
 
   return (
     <View style={styles.container}>
