@@ -68,14 +68,15 @@ class AISummaryService:
             f"- Output a concise bullet-point summary (maximum 3-4 bullet points).\n"
             f"- Focus on key takeaways: what was built, what tool was introduced, or what the core idea is.\n"
             f"- Format using clean Markdown with bold keywords for highlights.\n"
-            f"- Keep it professional and strictly objective. No introductions or explanations outside the bullet points."
+            f"- Keep it professional and strictly objective. No introductions or explanations outside the bullet points.\n"
+            f"- Avoid AI writing cliches and buzzwords. Do not use words like 'delve', 'tapestry', 'leverage', 'utilize', 'robust', 'streamline', 'seamless', 'pivotal', 'testament', 'revolutionize', 'groundbreaking', 'furthermore', 'moreover', 'in conclusion'. Use direct, simple, and plain words instead (e.g. use 'use' instead of 'leverage' or 'utilize', 'reliable' instead of 'robust', 'important' or 'key' instead of 'pivotal')."
         )
 
         try:
             completion = self.client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[
-                    {"role": "system", "content": "You are an elite research assistant specializing in tech, AI, and developer tools. Summarize posts concisely."},
+                    {"role": "system", "content": "You are a technical document summary generator. Summarize posts in plain, direct language without fluff or AI buzzwords."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.3,
@@ -89,7 +90,7 @@ class AISummaryService:
                 completion = self.client.chat.completions.create(
                     model="llama3-70b-8192",
                     messages=[
-                        {"role": "system", "content": "You are an elite tech summary assistant."},
+                        {"role": "system", "content": "You are a technical document summary generator. Summarize posts in plain, direct language without fluff or AI buzzwords."},
                         {"role": "user", "content": prompt}
                     ],
                     temperature=0.3,

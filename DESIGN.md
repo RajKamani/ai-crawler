@@ -98,7 +98,7 @@ spacing:
 ## Brand & Style
 This design system is built on the philosophy of **Technical Objectivity**. It treats information as the primary interface element, stripping away decorative styling in favor of a raw, brutalist, and highly efficient aesthetic. It is designed for users who value precision over polish—developers, data analysts, and technical professionals.
 
-The style is a hybrid of **Minimalism** and **Brutalism**. It utilizes a strict structural grid where every element is contained within defined borders. The emotional response is one of clarity, transparency, and high-functioning utility. There is no ambiguity; the UI should feel "compiled" rather than "decorated."
+The style is a hybrid of **Minimalism** and **Brutalism**. It uses a strict structural grid where every element is contained within defined borders. The emotional response is one of clarity, transparency, and high-functioning utility. There is no ambiguity; the UI should feel "compiled" rather than "decorated."
 
 ## Colors
 The palette is intentionally restrictive to maintain focus and urgency. 

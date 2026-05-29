@@ -110,7 +110,7 @@ export default function SettingsHubScreen() {
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>CRAWLER CORE ENGINE V1.0.0</Text>
           <Text style={styles.infoBody}>
-            This application utilizes Groq Llama 3.3 for summarizing. Feeds are crawled asynchronously via FastAPI background tasks and stored in Supabase PostgreSQL database.
+            This application uses Groq Llama 3.3 for summarizing. Feeds are crawled asynchronously via FastAPI background tasks and stored in Supabase PostgreSQL database.
           </Text>
         </View>
 
