@@ -38,6 +38,7 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
   const [newSub, setNewSub] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [updatingItems, setUpdatingItems] = useState<Record<string, 'toggle' | 'delete'>>({});
 
   const handleAdd = async (nameToAdd: string) => {
     if (!nameToAdd.trim()) return;
@@ -50,6 +51,38 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
       setErrorMsg(err.message || 'Subreddit could not be verified.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleToggle = async (id: string, isActive: boolean) => {
+    setUpdatingItems((prev) => ({ ...prev, [id]: 'toggle' }));
+    setErrorMsg('');
+    try {
+      await onToggleSubreddit(id, isActive);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to toggle subreddit.');
+    } finally {
+      setUpdatingItems((prev) => {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
+    }
+  };
+
+  const handleRemove = async (id: string) => {
+    setUpdatingItems((prev) => ({ ...prev, [id]: 'delete' }));
+    setErrorMsg('');
+    try {
+      await onRemoveSubreddit(id);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to remove subreddit.');
+    } finally {
+      setUpdatingItems((prev) => {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
     }
   };
 
@@ -132,29 +165,44 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
         </View>
       ) : (
         <View style={styles.listContainer}>
-          {subreddits.map((item) => (
-            <View key={item.id} style={styles.listItem}>
-              <View style={styles.listItemLeft}>
-                <FontAwesome5 name="reddit-alien" size={16} color="#bc000a" />
-                <Text style={styles.subredditName}>{item.subreddit_name.toUpperCase()}</Text>
+          {subreddits.map((item) => {
+            const updatingType = updatingItems[item.id];
+            const isUpdating = !!updatingType;
+
+            return (
+              <View key={item.id} style={[styles.listItem, isUpdating && { opacity: 0.6 }]}>
+                <View style={styles.listItemLeft}>
+                  <FontAwesome5 name="reddit-alien" size={16} color="#bc000a" />
+                  <Text style={styles.subredditName}>{item.subreddit_name.toUpperCase()}</Text>
+                </View>
+                
+                <View style={styles.listItemRight}>
+                  {updatingType === 'toggle' ? (
+                    <ActivityIndicator size="small" color="#bc000a" style={{ marginRight: 8 }} />
+                  ) : (
+                    <Switch
+                      value={item.is_active}
+                      onValueChange={(val) => handleToggle(item.id, val)}
+                      trackColor={{ false: '#dcd9d9', true: 'rgba(188, 0, 10, 0.3)' }}
+                      thumbColor={item.is_active ? '#bc000a' : '#926f6a'}
+                      disabled={isUpdating}
+                    />
+                  )}
+                  <Pressable
+                    style={[styles.deleteBtn, isUpdating && { opacity: 0.5 }]}
+                    onPress={() => handleRemove(item.id)}
+                    disabled={isUpdating}
+                  >
+                    {updatingType === 'delete' ? (
+                      <ActivityIndicator size="small" color="#bc000a" />
+                    ) : (
+                      <Ionicons name="trash-outline" size={18} color="#bc000a" />
+                    )}
+                  </Pressable>
+                </View>
               </View>
-              
-              <View style={styles.listItemRight}>
-                <Switch
-                  value={item.is_active}
-                  onValueChange={(val) => onToggleSubreddit(item.id, val)}
-                  trackColor={{ false: '#dcd9d9', true: 'rgba(188, 0, 10, 0.3)' }}
-                  thumbColor={item.is_active ? '#bc000a' : '#926f6a'}
-                />
-                <Pressable
-                  style={styles.deleteBtn}
-                  onPress={() => onRemoveSubreddit(item.id)}
-                >
-                  <Ionicons name="trash-outline" size={18} color="#bc000a" />
-                </Pressable>
-              </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       )}
     </View>

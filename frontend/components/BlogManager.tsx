@@ -39,6 +39,7 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
   const [blogUrl, setBlogUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [updatingItems, setUpdatingItems] = useState<Record<string, 'toggle' | 'delete'>>({});
 
   const handleAdd = async (name: string, url: string) => {
     const trimmedName = name.trim();
@@ -58,6 +59,38 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
       setErrorMsg(err.message || 'Could not parse RSS feed.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleToggle = async (id: string, isActive: boolean) => {
+    setUpdatingItems((prev) => ({ ...prev, [id]: 'toggle' }));
+    setErrorMsg('');
+    try {
+      await onToggleBlog(id, isActive);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to toggle blog.');
+    } finally {
+      setUpdatingItems((prev) => {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
+    }
+  };
+
+  const handleRemove = async (id: string) => {
+    setUpdatingItems((prev) => ({ ...prev, [id]: 'delete' }));
+    setErrorMsg('');
+    try {
+      await onRemoveBlog(id);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to remove blog.');
+    } finally {
+      setUpdatingItems((prev) => {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
     }
   };
 
@@ -154,34 +187,49 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
         </View>
       ) : (
         <View style={styles.listContainer}>
-          {blogs.map((item) => (
-            <View key={item.id} style={styles.listItem}>
-              <View style={styles.listItemLeft}>
-                <FontAwesome5 name="rss" size={14} color="#bc000a" />
-                <View style={styles.blogMeta}>
-                  <Text style={styles.blogName}>{item.blog_name.toUpperCase()}</Text>
-                  <Text style={styles.blogUrl} numberOfLines={1}>
-                    {item.blog_url}
-                  </Text>
+          {blogs.map((item) => {
+            const updatingType = updatingItems[item.id];
+            const isUpdating = !!updatingType;
+
+            return (
+              <View key={item.id} style={[styles.listItem, isUpdating && { opacity: 0.6 }]}>
+                <View style={styles.listItemLeft}>
+                  <FontAwesome5 name="rss" size={14} color="#bc000a" />
+                  <View style={styles.blogMeta}>
+                    <Text style={styles.blogName}>{item.blog_name.toUpperCase()}</Text>
+                    <Text style={styles.blogUrl} numberOfLines={1}>
+                      {item.blog_url}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.listItemRight}>
+                  {updatingType === 'toggle' ? (
+                    <ActivityIndicator size="small" color="#bc000a" style={{ marginRight: 8 }} />
+                  ) : (
+                    <Switch
+                      value={item.is_active}
+                      onValueChange={(val) => handleToggle(item.id, val)}
+                      trackColor={{ false: '#dcd9d9', true: 'rgba(188, 0, 10, 0.3)' }}
+                      thumbColor={item.is_active ? '#bc000a' : '#926f6a'}
+                      disabled={isUpdating}
+                    />
+                  )}
+                  <Pressable
+                    style={[styles.deleteBtn, isUpdating && { opacity: 0.5 }]}
+                    onPress={() => handleRemove(item.id)}
+                    disabled={isUpdating}
+                  >
+                    {updatingType === 'delete' ? (
+                      <ActivityIndicator size="small" color="#bc000a" />
+                    ) : (
+                      <Ionicons name="trash-outline" size={18} color="#bc000a" />
+                    )}
+                  </Pressable>
                 </View>
               </View>
-
-              <View style={styles.listItemRight}>
-                <Switch
-                  value={item.is_active}
-                  onValueChange={(val) => onToggleBlog(item.id, val)}
-                  trackColor={{ false: '#dcd9d9', true: 'rgba(188, 0, 10, 0.3)' }}
-                  thumbColor={item.is_active ? '#bc000a' : '#926f6a'}
-                />
-                <Pressable
-                  style={styles.deleteBtn}
-                  onPress={() => onRemoveBlog(item.id)}
-                >
-                  <Ionicons name="trash-outline" size={18} color="#bc000a" />
-                </Pressable>
-              </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       )}
     </View>

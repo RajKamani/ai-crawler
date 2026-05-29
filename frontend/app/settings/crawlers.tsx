@@ -8,9 +8,19 @@ import {
   ActivityIndicator,
   Pressable,
   Platform,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useCrawlerSettings, CrawlerSchedule } from '@/hooks/useCrawlerSettings';
+
+const showAlert = (title: string, message: string) => {
+  if (Platform.OS === 'web') {
+    alert(`${title}: ${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+};
+
 
 // Conditionally import DateTimePicker to prevent Web bundler crashes
 let DateTimePicker: any = null;
@@ -115,6 +125,7 @@ export default function CrawlerSettingsScreen() {
       await updateSchedule(schedule.crawler_name, undefined, value);
     } catch (err) {
       console.error('Error toggling crawler:', err);
+      showAlert('Update Failed', err instanceof Error ? err.message : String(err));
     } finally {
       setUpdatingName(null);
     }
@@ -129,6 +140,7 @@ export default function CrawlerSettingsScreen() {
       await updateSchedule(schedule.crawler_name, newInterval, undefined);
     } catch (err) {
       console.error('Error adjusting interval:', err);
+      showAlert('Update Failed', err instanceof Error ? err.message : String(err));
     } finally {
       setUpdatingName(null);
     }
@@ -149,6 +161,7 @@ export default function CrawlerSettingsScreen() {
       await updateSchedule(name, defaultVal, undefined);
     } catch (err) {
       console.error('Error changing mode:', err);
+      showAlert('Mode Change Failed', err instanceof Error ? err.message : String(err));
     } finally {
       setUpdatingName(null);
     }
@@ -174,6 +187,7 @@ export default function CrawlerSettingsScreen() {
         await updateSchedule(crawlerName, encoded, undefined);
       } catch (err) {
         console.error('Error saving daily time:', err);
+        showAlert('Save Failed', err instanceof Error ? err.message : String(err));
       } finally {
         setUpdatingName(null);
       }
@@ -200,6 +214,7 @@ export default function CrawlerSettingsScreen() {
           await updateSchedule(crawlerName, encoded, undefined);
         } catch (err) {
           console.error('Error saving date/time:', err);
+          showAlert('Save Failed', err instanceof Error ? err.message : String(err));
         } finally {
           setUpdatingName(null);
         }
@@ -243,6 +258,7 @@ export default function CrawlerSettingsScreen() {
       await updateSchedule(crawlerName, encoded, undefined);
     } catch (err) {
       console.error('Error updating web time:', err);
+      showAlert('Update Failed', err instanceof Error ? err.message : String(err));
     } finally {
       setUpdatingName(null);
     }
@@ -259,6 +275,7 @@ export default function CrawlerSettingsScreen() {
       await updateSchedule(crawlerName, encoded, undefined);
     } catch (err) {
       console.error('Error updating web datetime:', err);
+      showAlert('Update Failed', err instanceof Error ? err.message : String(err));
     } finally {
       setUpdatingName(null);
     }
@@ -281,7 +298,8 @@ export default function CrawlerSettingsScreen() {
             const mode = getScheduleMode(schedule.interval_minutes);
 
             return (
-              <View key={schedule.id} style={styles.scheduleCard}>
+              <View key={schedule.id} style={[styles.scheduleCard, isUpdating && { opacity: 0.6 }]}>
+
                 {/* Header Row: Title and Switch */}
                 <View style={styles.cardHeader}>
                   <View style={styles.titleArea}>

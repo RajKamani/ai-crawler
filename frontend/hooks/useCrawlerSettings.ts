@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { API_BASE_URL, AUTH_HEADER } from '../constants/Config';
+import { getErrorMessage } from '../utils/error';
 
 export interface CrawlerSchedule {
   id: string;
@@ -46,8 +47,9 @@ export const useCrawlerSettings = () => {
 
     const data = await response.json();
     if (!response.ok) {
-      throw new Error(data.detail || 'Failed to update crawler schedule');
+      throw new Error(getErrorMessage(data, 'Failed to update crawler schedule'));
     }
+
 
     setSchedules((prev) =>
       prev.map((sch) => (sch.crawler_name === name ? data.setting : sch))

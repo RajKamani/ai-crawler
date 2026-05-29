@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { API_BASE_URL, AUTH_HEADER } from '../constants/Config';
+import { getErrorMessage } from '../utils/error';
 
 export interface BlogFeed {
   id: string;
@@ -58,7 +59,7 @@ export const useUserBlogs = () => {
 
     const data = await response.json();
     if (!response.ok) {
-      throw new Error(data.detail || 'Failed to add blog feed');
+      throw new Error(getErrorMessage(data, 'Failed to add blog feed'));
     }
 
     setBlogs((prev) => [data.blog, ...prev]);
@@ -72,7 +73,7 @@ export const useUserBlogs = () => {
 
     if (!response.ok) {
       const data = await response.json();
-      throw new Error(data.detail || 'Failed to remove blog');
+      throw new Error(getErrorMessage(data, 'Failed to remove blog'));
     }
 
     setBlogs((prev) => prev.filter((blog) => blog.id !== id));
@@ -90,7 +91,7 @@ export const useUserBlogs = () => {
 
     if (!response.ok) {
       const data = await response.json();
-      throw new Error(data.detail || 'Failed to toggle blog');
+      throw new Error(getErrorMessage(data, 'Failed to toggle blog'));
     }
 
     setBlogs((prev) =>

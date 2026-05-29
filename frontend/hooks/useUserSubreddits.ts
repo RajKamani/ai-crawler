@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { API_BASE_URL, AUTH_HEADER } from '../constants/Config';
+import { getErrorMessage } from '../utils/error';
 
 export interface Subreddit {
   id: string;
@@ -57,7 +58,7 @@ export const useUserSubreddits = () => {
 
     const data = await response.json();
     if (!response.ok) {
-      throw new Error(data.detail || 'Failed to add subreddit');
+      throw new Error(getErrorMessage(data, 'Failed to add subreddit'));
     }
 
     setSubreddits((prev) => [data.subreddit, ...prev]);
@@ -71,7 +72,7 @@ export const useUserSubreddits = () => {
 
     if (!response.ok) {
       const data = await response.json();
-      throw new Error(data.detail || 'Failed to remove subreddit');
+      throw new Error(getErrorMessage(data, 'Failed to remove subreddit'));
     }
 
     setSubreddits((prev) => prev.filter((sub) => sub.id !== id));
@@ -89,7 +90,7 @@ export const useUserSubreddits = () => {
 
     if (!response.ok) {
       const data = await response.json();
-      throw new Error(data.detail || 'Failed to toggle subreddit');
+      throw new Error(getErrorMessage(data, 'Failed to toggle subreddit'));
     }
 
     setSubreddits((prev) =>

@@ -19,14 +19,31 @@ global.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   const url = typeof input === 'string' ? input : input.toString();
   if (url.startsWith(API_BASE_URL)) {
     const { data: { session } } = await supabase.auth.getSession();
-    const headers = new Headers(init?.headers);
-    if (session?.access_token) {
-      headers.set('Authorization', `Bearer ${session.access_token}`);
-    } else {
-      headers.set('Authorization', 'Bearer mock-user-session-token-12345');
+    
+    // Copy headers safely as a plain object to prevent React Native Headers class issues
+    const plainHeaders: Record<string, string> = {};
+    if (init?.headers) {
+      if (init.headers instanceof Headers) {
+        init.headers.forEach((value, key) => {
+          plainHeaders[key] = value;
+        });
+      } else if (Array.isArray(init.headers)) {
+        init.headers.forEach(([key, value]) => {
+          plainHeaders[key] = value;
+        });
+      } else {
+        Object.assign(plainHeaders, init.headers);
+      }
     }
+
+    if (session?.access_token) {
+      plainHeaders['Authorization'] = `Bearer ${session.access_token}`;
+    } else {
+      plainHeaders['Authorization'] = 'Bearer mock-user-session-token-12345';
+    }
+
     init = init || {};
-    init.headers = headers;
+    init.headers = plainHeaders;
   }
   return originalFetch(input, init);
 };
