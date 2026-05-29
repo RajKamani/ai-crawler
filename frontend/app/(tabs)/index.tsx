@@ -84,6 +84,9 @@ export default function HomeFeedScreen() {
   const fetchFeed = async (pageNum: number, shouldReset = false) => {
     if (isLoading) return;
     setIsLoading(true);
+    if (shouldReset) {
+      setPosts([]);
+    }
     try {
       let url = `${API_BASE_URL}/posts/personalized?page=${pageNum}&limit=10`;
       if (selectedSourceId) {

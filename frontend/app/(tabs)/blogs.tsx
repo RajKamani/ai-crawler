@@ -45,6 +45,9 @@ export default function BlogsScreen() {
   const fetchPosts = async (pageNum: number, shouldReset = false) => {
     if (isLoading) return;
     setIsLoading(true);
+    if (shouldReset) {
+      setPosts([]);
+    }
     try {
       const response = await fetch(
         `${API_BASE_URL}/posts?type=blog&page=${pageNum}&limit=10`,

@@ -8,10 +8,12 @@ import {
   Linking,
   ScrollView,
   ActivityIndicator,
+  Share,
 } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { PostType } from './PostCard';
 import { MarkdownRenderer } from './MarkdownRenderer';
+
 
 interface InshortsCardProps {
   post: PostType;
@@ -120,6 +122,18 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
 
   const theme = getSourceStyles();
 
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `${post.title}\n\n${post.content || ''}\n\nRead more at: ${post.url}`,
+        title: post.title,
+        url: post.url,
+      });
+    } catch (error: any) {
+      console.error('Error sharing post:', error);
+    }
+  };
+
   const handleToggleSummary = async () => {
     if (showSummary) {
       setShowSummary(false);
@@ -186,6 +200,16 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
 
         {/* Top Floating Actions */}
         <View style={styles.floatingActions}>
+          <Pressable
+            style={styles.floatingBtn}
+            onPress={handleShare}
+          >
+            <Ionicons
+              name="share-social-outline"
+              size={20}
+              color="#1c1b1b"
+            />
+          </Pressable>
           <Pressable
             style={styles.floatingBtn}
             onPress={() => onToggleBookmark(post.id, post.is_bookmarked)}
@@ -388,6 +412,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     bottom: 12,
+    flexDirection: 'row',
+    gap: 8,
   },
   floatingBtn: {
     width: 36,
