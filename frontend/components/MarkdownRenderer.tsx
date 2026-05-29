@@ -1,12 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/hooks/useTheme';
 
 interface MarkdownRendererProps {
   content: string;
 }
 
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
+  const colors = useTheme();
   if (!content) return null;
 
   // Split content by newline
@@ -26,9 +28,9 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) =
         // End of code block
         const codeText = codeBlockLines.join('\n');
         renderedElements.push(
-          <View key={`code-${i}`} style={styles.codeBlock}>
+          <View key={`code-${i}`} style={[styles.codeBlock, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <Text style={styles.codeBlockText}>{codeText}</Text>
+              <Text style={[styles.codeBlockText, { color: colors.primary }]}>{codeText}</Text>
             </ScrollView>
           </View>
         );
@@ -55,24 +57,24 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) =
     // 1. Headers
     if (trimmed.startsWith('# ')) {
       renderedElements.push(
-        <Text key={`h1-${i}`} style={styles.h1}>
-          {renderTextWithInlineStyles(trimmed.slice(2))}
+        <Text key={`h1-${i}`} style={[styles.h1, { color: colors.text }]}>
+          {renderTextWithInlineStyles(trimmed.slice(2), colors)}
         </Text>
       );
       continue;
     }
     if (trimmed.startsWith('## ')) {
       renderedElements.push(
-        <Text key={`h2-${i}`} style={styles.h2}>
-          {renderTextWithInlineStyles(trimmed.slice(3))}
+        <Text key={`h2-${i}`} style={[styles.h2, { color: colors.primary }]}>
+          {renderTextWithInlineStyles(trimmed.slice(3), colors)}
         </Text>
       );
       continue;
     }
     if (trimmed.startsWith('### ')) {
       renderedElements.push(
-        <Text key={`h3-${i}`} style={styles.h3}>
-          {renderTextWithInlineStyles(trimmed.slice(4))}
+        <Text key={`h3-${i}`} style={[styles.h3, { color: colors.text }]}>
+          {renderTextWithInlineStyles(trimmed.slice(4), colors)}
         </Text>
       );
       continue;
@@ -85,10 +87,10 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) =
       renderedElements.push(
         <View key={`bullet-${i}`} style={styles.bulletRow}>
           <View style={styles.bulletPoint}>
-            <Ionicons name="sparkles-outline" size={10} color="#bc000a" />
+            <Ionicons name="sparkles-outline" size={10} color={colors.primary} />
           </View>
-          <Text style={styles.bulletText}>
-            {renderTextWithInlineStyles(bulletText)}
+          <Text style={[styles.bulletText, { color: colors.text }]}>
+            {renderTextWithInlineStyles(bulletText, colors)}
           </Text>
         </View>
       );
@@ -102,9 +104,9 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) =
       const rest = numMatch[2];
       renderedElements.push(
         <View key={`num-${i}`} style={styles.bulletRow}>
-          <Text style={styles.numberPrefix}>{num}.</Text>
-          <Text style={styles.bulletText}>
-            {renderTextWithInlineStyles(rest)}
+          <Text style={[styles.numberPrefix, { color: colors.primary }]}>{num}.</Text>
+          <Text style={[styles.bulletText, { color: colors.text }]}>
+            {renderTextWithInlineStyles(rest, colors)}
           </Text>
         </View>
       );
@@ -113,8 +115,8 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) =
 
     // 4. Regular Paragraph
     renderedElements.push(
-      <Text key={`p-${i}`} style={styles.paragraph}>
-        {renderTextWithInlineStyles(line)}
+      <Text key={`p-${i}`} style={[styles.paragraph, { color: colors.text }]}>
+        {renderTextWithInlineStyles(line, colors)}
       </Text>
     );
   }
@@ -123,9 +125,9 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) =
   if (inCodeBlock && codeBlockLines.length > 0) {
     const codeText = codeBlockLines.join('\n');
     renderedElements.push(
-      <View key="code-eof" style={styles.codeBlock}>
+      <View key="code-eof" style={[styles.codeBlock, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <Text style={styles.codeBlockText}>{codeText}</Text>
+          <Text style={[styles.codeBlockText, { color: colors.primary }]}>{codeText}</Text>
         </ScrollView>
       </View>
     );
@@ -139,7 +141,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) =
 };
 
 // Parser to support **bold**, *italic*, `inline code`, and [link](url) formatting
-function renderTextWithInlineStyles(text: string) {
+function renderTextWithInlineStyles(text: string, colors: any) {
   const regex = /(\[.*?\]\(.+?\)|\*\*.*?\*\*|\*.*?\*|`.*?`)/g;
   const matches = text.split(regex);
 
@@ -151,7 +153,7 @@ function renderTextWithInlineStyles(text: string) {
       return (
         <Text
           key={idx}
-          style={styles.linkText}
+          style={[styles.linkText, { color: colors.primary }]}
           onPress={() => {
             if (url.startsWith('http')) {
               Linking.openURL(url).catch((err) =>
@@ -166,7 +168,7 @@ function renderTextWithInlineStyles(text: string) {
     }
     if (part.startsWith('**') && part.endsWith('**')) {
       return (
-        <Text key={idx} style={styles.boldText}>
+        <Text key={idx} style={[styles.boldText, { color: colors.text }]}>
           {part.slice(2, -2)}
         </Text>
       );
@@ -180,7 +182,7 @@ function renderTextWithInlineStyles(text: string) {
     }
     if (part.startsWith('`') && part.endsWith('`')) {
       return (
-        <Text key={idx} style={styles.inlineCode}>
+        <Text key={idx} style={[styles.inlineCode, { color: colors.primary, backgroundColor: colors.surfaceContainer }]}>
           {part.slice(1, -1)}
         </Text>
       );

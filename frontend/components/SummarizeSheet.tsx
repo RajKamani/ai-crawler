@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { useTheme } from '@/hooks/useTheme';
 
 interface SummarizeSheetProps {
   isVisible: boolean;
@@ -28,6 +29,7 @@ export const SummarizeSheet: React.FC<SummarizeSheetProps> = ({
   isLoading,
 }) => {
   const insets = useSafeAreaInsets();
+  const colors = useTheme();
 
   return (
     <Modal
@@ -41,23 +43,23 @@ export const SummarizeSheet: React.FC<SummarizeSheetProps> = ({
         <Pressable style={styles.dismissArea} onPress={onClose} />
         
         {/* Bottom Sheet Container */}
-        <View style={[styles.sheetContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+        <View style={[styles.sheetContainer, { backgroundColor: colors.background, borderColor: colors.border, paddingBottom: Math.max(insets.bottom, 20) }]}>
           {/* Drag Handle indicator */}
-          <View style={styles.dragHandle} />
+          <View style={[styles.dragHandle, { backgroundColor: colors.border }]} />
 
           {/* Header Row */}
           <View style={styles.header}>
             <View style={styles.sparkleTitle}>
-              <Ionicons name="sparkles" size={18} color="#bc000a" />
-              <Text style={styles.headerText}>AI TAKEAWAYS</Text>
+              <Ionicons name="sparkles" size={18} color={colors.primary} />
+              <Text style={[styles.headerText, { color: colors.text }]}>AI TAKEAWAYS</Text>
             </View>
-            <Pressable onPress={onClose} style={styles.closeBtn}>
-              <Ionicons name="close" size={20} color="#1c1b1b" />
+            <Pressable onPress={onClose} style={[styles.closeBtn, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
+              <Ionicons name="close" size={20} color={colors.text} />
             </Pressable>
           </View>
 
           {/* Post Title Context */}
-          <Text style={styles.postTitle} numberOfLines={2}>
+          <Text style={[styles.postTitle, { color: colors.tabIconDefault }]} numberOfLines={2}>
             {postTitle}
           </Text>
 
@@ -65,15 +67,15 @@ export const SummarizeSheet: React.FC<SummarizeSheetProps> = ({
           <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent}>
             {isLoading ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#bc000a" />
-                <Text style={styles.loadingText}>Groq Llama 3.3 is reading and summarizing...</Text>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={[styles.loadingText, { color: colors.tabIconDefault }]}>Groq Llama 3.3 is reading and summarizing...</Text>
               </View>
             ) : (
               <View style={styles.summaryContainer}>
                 {summary ? (
                   <MarkdownRenderer content={summary} />
                 ) : (
-                  <Text style={styles.summaryText}>No summary available.</Text>
+                  <Text style={[styles.summaryText, { color: colors.text }]}>No summary available.</Text>
                 )}
               </View>
             )}
@@ -81,7 +83,7 @@ export const SummarizeSheet: React.FC<SummarizeSheetProps> = ({
 
           {/* Bottom CTA */}
           <View style={styles.footer}>
-            <Pressable style={styles.actionBtn} onPress={onClose}>
+            <Pressable style={[styles.actionBtn, { backgroundColor: colors.primary, borderColor: colors.border }]} onPress={onClose}>
               <Text style={styles.actionBtnText}>GOT IT, THANKS!</Text>
             </Pressable>
           </View>

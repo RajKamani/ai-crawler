@@ -9,6 +9,7 @@ import {
   Switch,
 } from 'react-native';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/hooks/useTheme';
 
 interface BlogItem {
   id: string;
@@ -35,6 +36,8 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
   onRemoveBlog,
   onToggleBlog,
 }) => {
+  const colors = useTheme();
+  const isDark = colors.background === '#141313';
   const [blogName, setBlogName] = useState('');
   const [blogUrl, setBlogUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -95,19 +98,23 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background, borderColor: colors.border }]}>
       {/* Title & Description */}
-      <Text style={styles.sectionTitle}>ADD CUSTOM BLOG RSS FEED</Text>
-      <Text style={styles.description}>
+      <Text style={[styles.sectionTitle, { color: colors.primary }]}>ADD CUSTOM BLOG RSS FEED</Text>
+      <Text style={[styles.description, { color: colors.text }]}>
         Add any valid RSS or Atom feed URL to aggregate posts in your personalized feed.
       </Text>
 
       {/* Input Fields */}
       <View style={styles.form}>
         <TextInput
-          style={[styles.input, errorMsg ? styles.inputError : null]}
+          style={[
+            styles.input, 
+            { backgroundColor: colors.surfaceContainer, color: colors.text, borderColor: colors.border },
+            errorMsg ? styles.inputError : null
+          ]}
           placeholder="BLOG NAME (E.G. TECHCRUNCH AI)"
-          placeholderTextColor="#926f6a"
+          placeholderTextColor={colors.tabIconDefault}
           value={blogName}
           onChangeText={(text) => {
             setBlogName(text);
@@ -116,9 +123,13 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
           editable={!isSubmitting}
         />
         <TextInput
-          style={[styles.input, errorMsg ? styles.inputError : null]}
+          style={[
+            styles.input, 
+            { backgroundColor: colors.surfaceContainer, color: colors.text, borderColor: colors.border },
+            errorMsg ? styles.inputError : null
+          ]}
           placeholder="RSS FEED URL"
-          placeholderTextColor="#926f6a"
+          placeholderTextColor={colors.tabIconDefault}
           value={blogUrl}
           onChangeText={(text) => {
             setBlogUrl(text);
@@ -130,7 +141,11 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
         />
         
         <Pressable
-          style={[styles.submitButton, isSubmitting ? styles.submitButtonDisabled : null]}
+          style={[
+            styles.submitButton, 
+            { backgroundColor: colors.primary, borderColor: colors.border },
+            isSubmitting ? styles.submitButtonDisabled : null
+          ]}
           onPress={() => handleAdd(blogName, blogUrl)}
           disabled={isSubmitting}
         >
@@ -148,7 +163,7 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
       {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
 
       {/* Suggestions */}
-      <Text style={styles.subTitle}>QUICK ADD POPULAR FEEDS</Text>
+      <Text style={[styles.subTitle, { color: colors.primary }]}>QUICK ADD POPULAR FEEDS</Text>
       <View style={styles.suggestionsContainer}>
         {suggestions.map((blog, idx) => {
           // Check if already added
@@ -161,14 +176,15 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
               key={idx}
               style={[
                 styles.suggestionChip,
+                { backgroundColor: colors.surfaceContainer, borderColor: colors.border },
                 isAdded ? styles.suggestionChipAdded : null,
               ]}
               onPress={() => !isAdded && handleAdd(blog.name, blog.url)}
               disabled={isAdded || isSubmitting}
             >
-              <Text style={styles.suggestionText}>{blog.name.toUpperCase()}</Text>
+              <Text style={[styles.suggestionText, { color: colors.text }]}>{blog.name.toUpperCase()}</Text>
               {isAdded && (
-                <Ionicons name="checkmark-circle" size={12} color="#926f6a" />
+                <Ionicons name="checkmark-circle" size={12} color={colors.tabIconDefault} />
               )}
             </Pressable>
           );
@@ -176,14 +192,14 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
       </View>
 
       {/* Added List */}
-      <Text style={styles.subTitle}>YOUR CUSTOM BLOGS ({blogs.length})</Text>
+      <Text style={[styles.subTitle, { color: colors.primary }]}>YOUR CUSTOM BLOGS ({blogs.length})</Text>
 
       {isLoading ? (
-        <ActivityIndicator size="small" color="#bc000a" style={{ marginVertical: 20 }} />
+        <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 20 }} />
       ) : blogs.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <FontAwesome5 name="rss" size={30} color="#1c1b1b" />
-          <Text style={styles.emptyText}>NO CUSTOM BLOGS ADDED YET.</Text>
+          <FontAwesome5 name="rss" size={30} color={colors.text} />
+          <Text style={[styles.emptyText, { color: colors.tabIconDefault }]}>NO CUSTOM BLOGS ADDED YET.</Text>
         </View>
       ) : (
         <View style={styles.listContainer}>
@@ -192,12 +208,12 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
             const isUpdating = !!updatingType;
 
             return (
-              <View key={item.id} style={[styles.listItem, isUpdating && { opacity: 0.6 }]}>
+              <View key={item.id} style={[styles.listItem, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }, isUpdating && { opacity: 0.6 }]}>
                 <View style={styles.listItemLeft}>
-                  <FontAwesome5 name="rss" size={14} color="#bc000a" />
+                  <FontAwesome5 name="rss" size={14} color={colors.primary} />
                   <View style={styles.blogMeta}>
-                    <Text style={styles.blogName}>{item.blog_name.toUpperCase()}</Text>
-                    <Text style={styles.blogUrl} numberOfLines={1}>
+                    <Text style={[styles.blogName, { color: colors.text }]}>{item.blog_name.toUpperCase()}</Text>
+                    <Text style={[styles.blogUrl, { color: colors.tabIconDefault }]} numberOfLines={1}>
                       {item.blog_url}
                     </Text>
                   </View>
@@ -205,18 +221,18 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
 
                 <View style={styles.listItemRight}>
                   {updatingType === 'toggle' ? (
-                    <ActivityIndicator size="small" color="#bc000a" style={{ marginRight: 8 }} />
+                    <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 8 }} />
                   ) : (
                     <Switch
                       value={item.is_active}
                       onValueChange={(val) => handleToggle(item.id, val)}
-                      trackColor={{ false: '#dcd9d9', true: 'rgba(188, 0, 10, 0.3)' }}
-                      thumbColor={item.is_active ? '#bc000a' : '#926f6a'}
+                      trackColor={{ false: isDark ? '#2c2b2b' : '#dcd9d9', true: isDark ? 'rgba(255, 79, 79, 0.3)' : 'rgba(188, 0, 10, 0.3)' }}
+                      thumbColor={item.is_active ? colors.primary : colors.tabIconDefault}
                       disabled={isUpdating}
                     />
                   )}
                   <Pressable
-                    style={[styles.deleteBtn, isUpdating && { opacity: 0.5 }]}
+                    style={[styles.deleteBtn, { backgroundColor: colors.surfaceContainer, borderColor: colors.primary }, isUpdating && { opacity: 0.5 }]}
                     onPress={() => handleRemove(item.id)}
                     disabled={isUpdating}
                   >

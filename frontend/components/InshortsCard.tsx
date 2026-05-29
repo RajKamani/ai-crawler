@@ -13,6 +13,7 @@ import {
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { PostType } from './PostCard';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { useTheme } from '@/hooks/useTheme';
 
 
 interface InshortsCardProps {
@@ -64,6 +65,8 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
   onSummarize,
   isViewed = false,
 }) => {
+  const colors = useTheme();
+  const isDark = colors.background === '#141313';
   const [showSummary, setShowSummary] = useState(false);
   const [summaryText, setSummaryText] = useState<string | null>(post.ai_summary || null);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
@@ -100,22 +103,22 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
     switch (sourceType) {
       case 'reddit':
         return {
-          accentColor: '#aa352b',
+          accentColor: isDark ? '#ff6b6b' : '#aa352b',
           icon: 'reddit',
-          placeholderBg: '#f0eded',
+          placeholderBg: isDark ? '#2c2b2b' : '#f0eded',
         };
       case 'github':
         return {
-          accentColor: '#00647f',
+          accentColor: isDark ? '#68d3fc' : '#00647f',
           icon: 'github',
-          placeholderBg: '#f0eded',
+          placeholderBg: isDark ? '#2c2b2b' : '#f0eded',
         };
       case 'blog':
       default:
         return {
-          accentColor: '#bc000a',
+          accentColor: isDark ? '#ff4f4f' : '#bc000a',
           icon: 'rss',
-          placeholderBg: '#f0eded',
+          placeholderBg: isDark ? '#2c2b2b' : '#f0eded',
         };
     }
   };
@@ -166,9 +169,9 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
   const mediaUrl = getMediaUrl(post);
 
   return (
-    <View style={[styles.card, { height: containerHeight }]}>
+    <View style={[styles.card, { height: containerHeight, backgroundColor: colors.background }]}>
       {/* Header Visual Section */}
-      <View style={[styles.headerContainer, { height: headerHeight }]}>
+      <View style={[styles.headerContainer, { height: headerHeight, backgroundColor: colors.surfaceContainer }]}>
         {mediaUrl ? (
           <>
             <Image
@@ -186,11 +189,11 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
 
         {/* Source Badge overlay */}
         <View style={styles.badgeOverlay}>
-          <View style={[styles.sourceBadge, { borderColor: `${theme.accentColor}60` }]}>
+          <View style={[styles.sourceBadge, { borderColor: `${theme.accentColor}60`, backgroundColor: colors.background }]}>
             <FontAwesome5 name={theme.icon} size={11} color={theme.accentColor} />
             <Text style={[styles.sourceText, { color: theme.accentColor }]}>{sourceName}</Text>
           </View>
-          <Text style={styles.dateText}>{formatDate(post.published_at)}</Text>
+          <Text style={[styles.dateText, { color: colors.text }]}>{formatDate(post.published_at)}</Text>
           {isViewed && (
             <View style={styles.viewedBadge}>
               <Text style={styles.viewedText}>READ</Text>
@@ -201,36 +204,36 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
         {/* Top Floating Actions */}
         <View style={styles.floatingActions}>
           <Pressable
-            style={styles.floatingBtn}
+            style={[styles.floatingBtn, { backgroundColor: colors.background, borderColor: colors.border }]}
             onPress={handleShare}
           >
             <Ionicons
               name="share-social-outline"
               size={20}
-              color="#1c1b1b"
+              color={colors.text}
             />
           </Pressable>
           <Pressable
-            style={styles.floatingBtn}
+            style={[styles.floatingBtn, { backgroundColor: colors.background, borderColor: colors.border }]}
             onPress={() => onToggleBookmark(post.id, post.is_bookmarked)}
           >
             <Ionicons
               name={post.is_bookmarked ? 'bookmark' : 'bookmark-outline'}
               size={20}
-              color={post.is_bookmarked ? '#bc000a' : '#1c1b1b'}
+              color={post.is_bookmarked ? colors.primary : colors.text}
             />
           </Pressable>
         </View>
       </View>
 
       {/* Main Body Section */}
-      <View style={[styles.bodyContainer, { height: contentHeight }]}>
+      <View style={[styles.bodyContainer, { height: contentHeight, backgroundColor: colors.background, borderColor: colors.border }]}>
         {/* Post Title */}
-        <Text style={[styles.title, isViewed && styles.titleViewed]} numberOfLines={2}>
+        <Text style={[styles.title, { color: colors.text }, isViewed && (isDark ? { color: '#8f807e' } : styles.titleViewed)]} numberOfLines={2}>
           {post.title}
         </Text>
 
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
         <ScrollView
           style={styles.scrollArea}
@@ -246,20 +249,20 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
           {showSummary ? (
             <View style={styles.summaryArea}>
               <View style={styles.summaryTitleRow}>
-                <Ionicons name="sparkles" size={14} color="#bc000a" />
-                <Text style={styles.summaryTitle}>AI Bullet Summary</Text>
+                <Ionicons name="sparkles" size={14} color={colors.primary} />
+                <Text style={[styles.summaryTitle, { color: colors.primary }]}>AI Bullet Summary</Text>
               </View>
               {isLoadingSummary ? (
                 <View style={styles.loaderContainer}>
-                  <ActivityIndicator size="small" color="#bc000a" />
-                  <Text style={styles.loaderText}>Llama 3 summarizing...</Text>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={[styles.loaderText, { color: colors.text }]}>Llama 3 summarizing...</Text>
                 </View>
               ) : (
                 <View style={styles.bulletsContainer}>
                   {summaryText ? (
                     <MarkdownRenderer content={summaryText} />
                   ) : (
-                    <Text style={styles.summaryText}>No summary available.</Text>
+                    <Text style={[styles.summaryText, { color: colors.text }]}>No summary available.</Text>
                   )}
                 </View>
               )}
@@ -267,49 +270,49 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
           ) : (
             <View>
               {post.sources?.type === 'github' && post.raw_data && (
-                <View style={styles.githubStatsRow}>
+                <View style={[styles.githubStatsRow, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
                   <View style={styles.gitStat}>
-                    <Ionicons name="star" size={14} color="#bc000a" />
-                    <Text style={styles.gitStatText}>{(post.raw_data.stars ?? 0).toLocaleString()} stars</Text>
+                    <Ionicons name="star" size={14} color={colors.primary} />
+                    <Text style={[styles.gitStatText, { color: colors.text }]}>{(post.raw_data.stars ?? 0).toLocaleString()} stars</Text>
                   </View>
                   <View style={styles.gitStat}>
-                    <FontAwesome5 name="code-branch" size={12} color="#1c1b1b" />
-                    <Text style={styles.gitStatText}>{(post.raw_data.forks ?? 0).toLocaleString()} forks</Text>
+                    <FontAwesome5 name="code-branch" size={12} color={colors.text} />
+                    <Text style={[styles.gitStatText, { color: colors.text }]}>{(post.raw_data.forks ?? 0).toLocaleString()} forks</Text>
                   </View>
                   <View style={styles.gitStat}>
                     <Ionicons name="code-slash" size={14} color={theme.accentColor} />
-                    <Text style={styles.gitStatText}>{post.raw_data.language ?? 'Unknown'}</Text>
+                    <Text style={[styles.gitStatText, { color: colors.text }]}>{post.raw_data.language ?? 'Unknown'}</Text>
                   </View>
                 </View>
               )}
 
               {post.sources?.type === 'reddit' && post.raw_data && (
-                <View style={styles.redditStatsRow}>
+                <View style={[styles.redditStatsRow, { backgroundColor: isDark ? '#2b1b1b' : '#fcf0ef', borderColor: theme.accentColor }]}>
                   <View style={styles.redditStat}>
-                    <Ionicons name="arrow-up" size={14} color="#aa352b" />
-                    <Text style={styles.redditStatText}>{(post.raw_data.score ?? 0).toLocaleString()} upvotes</Text>
+                    <Ionicons name="arrow-up" size={14} color={theme.accentColor} />
+                    <Text style={[styles.redditStatText, { color: theme.accentColor }]}>{(post.raw_data.score ?? 0).toLocaleString()} upvotes</Text>
                   </View>
                   <View style={styles.redditStat}>
-                    <Ionicons name="chatbox-ellipses" size={14} color="#1c1b1b" />
-                    <Text style={styles.redditStatText}>{(post.raw_data.num_comments ?? 0).toLocaleString()} comments</Text>
+                    <Ionicons name="chatbox-ellipses" size={14} color={colors.text} />
+                    <Text style={[styles.redditStatText, { color: theme.accentColor }]}>{(post.raw_data.num_comments ?? 0).toLocaleString()} comments</Text>
                   </View>
                 </View>
               )}
 
-              <Text style={styles.bodyText}>
+              <Text style={[styles.bodyText, { color: colors.text }]}>
                 {post.content ? post.content.replace(/\n+/g, '\n\n') : 'No content preview available.'}
               </Text>
 
               {post.sources?.type === 'reddit' && post.raw_data?.comments && post.raw_data.comments.length > 0 && (
-                <View style={styles.commentsContainer}>
-                  <Text style={styles.commentsHeader}>TOP COMMENTS</Text>
+                <View style={[styles.commentsContainer, { borderTopColor: colors.border }]}>
+                  <Text style={[styles.commentsHeader, { color: theme.accentColor }]}>TOP COMMENTS</Text>
                   {post.raw_data.comments.map((comment: any, idx: number) => (
-                    <View key={idx} style={styles.commentItem}>
+                    <View key={idx} style={[styles.commentItem, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
                       <View style={styles.commentMeta}>
-                        <Text style={styles.commentAuthor}>u/{comment.author}</Text>
-                        <Text style={styles.commentScore}>• {comment.score} upvotes</Text>
+                        <Text style={[styles.commentAuthor, { color: theme.accentColor }]}>u/{comment.author}</Text>
+                        <Text style={[styles.commentScore, { color: colors.tabIconDefault }]}>• {comment.score} upvotes</Text>
                       </View>
-                      <Text style={styles.commentBody}>{comment.body}</Text>
+                      <Text style={[styles.commentBody, { color: colors.text }]}>{comment.body}</Text>
                     </View>
                   ))}
                 </View>
@@ -322,16 +325,17 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
         <Pressable
           style={[
             styles.actionButton,
-            showSummary ? styles.actionActive : { borderColor: '#1c1b1b' },
+            { borderColor: colors.border },
+            showSummary ? { backgroundColor: colors.primary, borderColor: colors.primary } : null,
           ]}
           onPress={handleToggleSummary}
         >
           <Ionicons
             name="sparkles"
             size={15}
-            color={showSummary ? '#FFFFFF' : '#1c1b1b'}
+            color={showSummary ? '#FFFFFF' : colors.text}
           />
-          <Text style={[styles.actionBtnText, showSummary ? { color: '#FFFFFF' } : { color: '#1c1b1b' }]}>
+          <Text style={[styles.actionBtnText, { color: showSummary ? '#FFFFFF' : colors.text }]}>
             {showSummary ? 'Show Original' : 'AI Aggregated takeaways'}
           </Text>
         </Pressable>
@@ -339,14 +343,14 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
 
       {/* Footer Bottom Sheet Bar */}
       <Pressable
-        style={[styles.footerContainer, { height: footerHeight }]}
+        style={[styles.footerContainer, { height: footerHeight, backgroundColor: colors.surfaceContainer, borderTopColor: colors.border }]}
         onPress={() => Linking.openURL(post.url)}
       >
         <View style={styles.footerContent}>
-          <Text style={styles.footerText} numberOfLines={1}>
-            read more at <Text style={styles.footerDomain}>{getDomain(post.url)}</Text>
+          <Text style={[styles.footerText, { color: colors.text }]} numberOfLines={1}>
+            read more at <Text style={[styles.footerDomain, { color: colors.primary }]}>{getDomain(post.url)}</Text>
           </Text>
-          <Ionicons name="chevron-forward-outline" size={14} color="#bc000a" />
+          <Ionicons name="chevron-forward-outline" size={14} color={colors.primary} />
         </View>
       </Pressable>
     </View>

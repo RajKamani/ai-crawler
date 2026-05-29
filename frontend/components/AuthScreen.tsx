@@ -14,11 +14,14 @@ import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { supabase } from '../utils/supabase';
+import { useTheme } from '@/hooks/useTheme';
 
 // Completes the OAuth session redirect handling for web/browser environments
 WebBrowser.maybeCompleteAuthSession();
 
 export const AuthScreen: React.FC = () => {
+  const colors = useTheme();
+  const isDark = colors.background === '#141313';
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -148,51 +151,51 @@ export const AuthScreen: React.FC = () => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
     >
       <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
         {/* Header Block */}
         <View style={styles.headerBlock}>
-          <Text style={styles.appName}>AI CONTENT CRAWLER</Text>
-          <Text style={styles.tagline}>BRUTALIST TECH INTELLIGENCE AGGREGATOR</Text>
+          <Text style={[styles.appName, { color: colors.text }]}>AI CONTENT CRAWLER</Text>
+          <Text style={[styles.tagline, { color: colors.primary }]}>BRUTALIST TECH INTELLIGENCE AGGREGATOR</Text>
         </View>
 
         {/* Form Box */}
-        <View style={styles.formContainer}>
-          <Text style={styles.formTitle}>
+        <View style={[styles.formContainer, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.border }]}>
+          <Text style={[styles.formTitle, { color: colors.text }]}>
             {mode === 'login' ? 'SIGN IN' : 'CREATE ACCOUNT'}
           </Text>
 
           {errorMsg && (
-            <View style={styles.errorBox}>
-              <Ionicons name="alert-circle-outline" size={16} color="#bc000a" style={styles.errorIcon} />
-              <Text style={styles.errorText}>{errorMsg}</Text>
+            <View style={[styles.errorBox, { backgroundColor: isDark ? '#2c1414' : '#fcf0ef', borderColor: colors.primary }]}>
+              <Ionicons name="alert-circle-outline" size={16} color={colors.primary} style={styles.errorIcon} />
+              <Text style={[styles.errorText, { color: colors.primary }]}>{errorMsg}</Text>
             </View>
           )}
 
           {/* Google Sign In Button */}
           <Pressable
-            style={[styles.googleButton, isLoading && styles.buttonDisabled]}
+            style={[styles.googleButton, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.border }, isLoading && styles.buttonDisabled]}
             onPress={handleGoogleSignIn}
             disabled={isLoading}
           >
-            <Ionicons name="logo-google" size={18} color="#1c1b1b" style={styles.googleIcon} />
-            <Text style={styles.googleButtonText}>CONTINUE WITH GOOGLE</Text>
+            <Ionicons name="logo-google" size={18} color={colors.text} style={styles.googleIcon} />
+            <Text style={[styles.googleButtonText, { color: colors.text }]}>CONTINUE WITH GOOGLE</Text>
           </Pressable>
 
           {/* Divider */}
           <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+            <Text style={[styles.dividerText, { color: colors.tabIconDefault }]}>OR</Text>
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
           </View>
 
           {/* Email field */}
-          <Text style={styles.label}>EMAIL ADDRESS</Text>
+          <Text style={[styles.label, { color: colors.primary }]}>EMAIL ADDRESS</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { borderColor: colors.border, backgroundColor: colors.surfaceContainer, color: colors.text }]}
             placeholder="developer@local.host"
-            placeholderTextColor="#926f6a"
+            placeholderTextColor={colors.tabIconDefault}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -201,11 +204,11 @@ export const AuthScreen: React.FC = () => {
           />
 
           {/* Password field */}
-          <Text style={styles.label}>PASSWORD</Text>
+          <Text style={[styles.label, { color: colors.primary }]}>PASSWORD</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { borderColor: colors.border, backgroundColor: colors.surfaceContainer, color: colors.text }]}
             placeholder="••••••••"
-            placeholderTextColor="#926f6a"
+            placeholderTextColor={colors.tabIconDefault}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -215,14 +218,14 @@ export const AuthScreen: React.FC = () => {
 
           {/* Submit Button */}
           <Pressable
-            style={[styles.button, isLoading && styles.buttonDisabled]}
+            style={[styles.button, { backgroundColor: colors.primary, borderColor: colors.border, shadowColor: colors.border }, isLoading && styles.buttonDisabled]}
             onPress={handleSubmit}
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color="#fcf9f8" />
+              <ActivityIndicator color={colors.background} />
             ) : (
-              <Text style={styles.buttonText}>
+              <Text style={[styles.buttonText, { color: colors.background }]}>
                 {mode === 'login' ? 'ENTER DASHBOARD' : 'SIGN UP'}
               </Text>
             )}
@@ -236,7 +239,7 @@ export const AuthScreen: React.FC = () => {
               setErrorMsg(null);
             }}
           >
-            <Text style={styles.toggleButtonText}>
+            <Text style={[styles.toggleButtonText, { color: colors.text }]}>
               {mode === 'login'
                 ? 'Need an account? Sign up here'
                 : 'Already have an account? Log in here'}
@@ -246,7 +249,7 @@ export const AuthScreen: React.FC = () => {
 
         {/* Info Block */}
         <View style={styles.footerInfo}>
-          <Text style={styles.footerText}>SECURED VIA SUPABASE CRYPTO PROTOCOLS</Text>
+          <Text style={[styles.footerText, { color: colors.tabIconDefault }]}>SECURED VIA SUPABASE CRYPTO PROTOCOLS</Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

@@ -10,6 +10,7 @@ import {
   Switch,
 } from 'react-native';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/hooks/useTheme';
 
 interface SubredditItem {
   id: string;
@@ -35,6 +36,8 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
   onRemoveSubreddit,
   onToggleSubreddit,
 }) => {
+  const colors = useTheme();
+  const isDark = colors.background === '#141313';
   const [newSub, setNewSub] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -87,19 +90,23 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background, borderColor: colors.border }]}>
       {/* Title & Description */}
-      <Text style={styles.sectionTitle}>ADD CUSTOM SUBREDDIT</Text>
-      <Text style={styles.description}>
+      <Text style={[styles.sectionTitle, { color: colors.primary }]}>ADD CUSTOM SUBREDDIT</Text>
+      <Text style={[styles.description, { color: colors.text }]}>
         Posts will be fetched unfiltered from custom subreddits.
       </Text>
 
       {/* Input Box Row */}
       <View style={styles.inputContainer}>
         <TextInput
-          style={[styles.input, errorMsg ? styles.inputError : null]}
+          style={[
+            styles.input, 
+            { backgroundColor: colors.surfaceContainer, color: colors.text, borderColor: colors.border },
+            errorMsg ? styles.inputError : null
+          ]}
           placeholder="E.G. R/SELFHOSTED OR PYTHON"
-          placeholderTextColor="#926f6a"
+          placeholderTextColor={colors.tabIconDefault}
           value={newSub}
           onChangeText={(text) => {
             setNewSub(text);
@@ -110,7 +117,11 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
           autoCorrect={false}
         />
         <Pressable
-          style={[styles.addButton, isSubmitting ? styles.addButtonDisabled : null]}
+          style={[
+            styles.addButton, 
+            { backgroundColor: colors.primary, borderColor: colors.border },
+            isSubmitting ? styles.addButtonDisabled : null
+          ]}
           onPress={() => handleAdd(newSub)}
           disabled={isSubmitting}
         >
@@ -125,7 +136,7 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
       {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
 
       {/* Popular Suggestions */}
-      <Text style={styles.subTitle}>QUICK ADD SUGGESTIONS</Text>
+      <Text style={[styles.subTitle, { color: colors.primary }]}>QUICK ADD SUGGESTIONS</Text>
       <View style={styles.suggestionsContainer}>
         {suggestions.map((sub, idx) => {
           // Check if already added
@@ -139,14 +150,15 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
               key={idx}
               style={[
                 styles.suggestionChip,
+                { backgroundColor: colors.surfaceContainer, borderColor: colors.border },
                 isAdded ? styles.suggestionChipAdded : null,
               ]}
               onPress={() => !isAdded && handleAdd(sub.name)}
               disabled={isAdded || isSubmitting}
             >
-              <Text style={styles.suggestionText}>{sub.name.toUpperCase()}</Text>
+              <Text style={[styles.suggestionText, { color: colors.text }]}>{sub.name.toUpperCase()}</Text>
               {isAdded && (
-                <Ionicons name="checkmark-circle" size={12} color="#926f6a" />
+                <Ionicons name="checkmark-circle" size={12} color={colors.tabIconDefault} />
               )}
             </Pressable>
           );
@@ -154,14 +166,14 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
       </View>
 
       {/* Added List */}
-      <Text style={styles.subTitle}>YOUR CUSTOM SUBREDDITS ({subreddits.length})</Text>
+      <Text style={[styles.subTitle, { color: colors.primary }]}>YOUR CUSTOM SUBREDDITS ({subreddits.length})</Text>
       
       {isLoading ? (
-        <ActivityIndicator size="small" color="#bc000a" style={{ marginVertical: 20 }} />
+        <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 20 }} />
       ) : subreddits.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <FontAwesome5 name="reddit" size={32} color="#1c1b1b" />
-          <Text style={styles.emptyText}>NO CUSTOM SUBREDDITS ADDED YET.</Text>
+          <FontAwesome5 name="reddit" size={32} color={colors.text} />
+          <Text style={[styles.emptyText, { color: colors.tabIconDefault }]}>NO CUSTOM SUBREDDITS ADDED YET.</Text>
         </View>
       ) : (
         <View style={styles.listContainer}>
@@ -170,33 +182,33 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
             const isUpdating = !!updatingType;
 
             return (
-              <View key={item.id} style={[styles.listItem, isUpdating && { opacity: 0.6 }]}>
+              <View key={item.id} style={[styles.listItem, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }, isUpdating && { opacity: 0.6 }]}>
                 <View style={styles.listItemLeft}>
-                  <FontAwesome5 name="reddit-alien" size={16} color="#bc000a" />
-                  <Text style={styles.subredditName}>{item.subreddit_name.toUpperCase()}</Text>
+                  <FontAwesome5 name="reddit-alien" size={16} color={colors.primary} />
+                  <Text style={[styles.subredditName, { color: colors.text }]}>{item.subreddit_name.toUpperCase()}</Text>
                 </View>
                 
                 <View style={styles.listItemRight}>
                   {updatingType === 'toggle' ? (
-                    <ActivityIndicator size="small" color="#bc000a" style={{ marginRight: 8 }} />
+                    <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 8 }} />
                   ) : (
                     <Switch
                       value={item.is_active}
                       onValueChange={(val) => handleToggle(item.id, val)}
-                      trackColor={{ false: '#dcd9d9', true: 'rgba(188, 0, 10, 0.3)' }}
-                      thumbColor={item.is_active ? '#bc000a' : '#926f6a'}
+                      trackColor={{ false: isDark ? '#2c2b2b' : '#dcd9d9', true: isDark ? 'rgba(255, 79, 79, 0.3)' : 'rgba(188, 0, 10, 0.3)' }}
+                      thumbColor={item.is_active ? colors.primary : colors.tabIconDefault}
                       disabled={isUpdating}
                     />
                   )}
                   <Pressable
-                    style={[styles.deleteBtn, isUpdating && { opacity: 0.5 }]}
+                    style={[styles.deleteBtn, { backgroundColor: colors.surfaceContainer, borderColor: colors.primary }, isUpdating && { opacity: 0.5 }]}
                     onPress={() => handleRemove(item.id)}
                     disabled={isUpdating}
                   >
                     {updatingType === 'delete' ? (
-                      <ActivityIndicator size="small" color="#bc000a" />
+                      <ActivityIndicator size="small" color={colors.primary} />
                     ) : (
-                      <Ionicons name="trash-outline" size={18} color="#bc000a" />
+                      <Ionicons name="trash-outline" size={18} color={colors.primary} />
                     )}
                   </Pressable>
                 </View>

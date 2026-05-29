@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '@/hooks/useTheme';
 
 interface SettingsMenuItemProps {
   icon: string;
@@ -22,21 +23,22 @@ const SettingsMenuItem: React.FC<SettingsMenuItemProps> = ({
   href,
   isFontAwesome = false,
 }) => {
+  const colors = useTheme();
   return (
     <Link href={href} asChild>
-      <Pressable style={styles.menuItem}>
-        <View style={styles.iconContainer}>
+      <Pressable style={[styles.menuItem, { borderBottomColor: colors.border }]}>
+        <View style={[styles.iconContainer, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
           {isFontAwesome ? (
-            <FontAwesome5 name={icon} size={16} color="#1c1b1b" />
+            <FontAwesome5 name={icon} size={16} color={colors.text} />
           ) : (
-            <Ionicons name={icon as any} size={18} color="#1c1b1b" />
+            <Ionicons name={icon as any} size={18} color={colors.text} />
           )}
         </View>
         <View style={styles.textContainer}>
-          <Text style={styles.menuTitle}>{title.toUpperCase()}</Text>
-          <Text style={styles.menuSubtitle}>{subtitle}</Text>
+          <Text style={[styles.menuTitle, { color: colors.text }]}>{title.toUpperCase()}</Text>
+          <Text style={[styles.menuSubtitle, { color: colors.tabIconDefault }]}>{subtitle}</Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color="#1c1b1b" />
+        <Ionicons name="chevron-forward" size={18} color={colors.text} />
       </Pressable>
     </Link>
   );
@@ -44,32 +46,35 @@ const SettingsMenuItem: React.FC<SettingsMenuItemProps> = ({
 
 export default function SettingsHubScreen() {
   const { user, signOut } = useAuth();
+  const colors = useTheme();
   const email = user?.email || 'mock-user@local.host';
   const username = email.split('@')[0].toUpperCase();
 
+  const isDark = colors.background === '#141313';
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>SETTINGS</Text>
-        <Text style={styles.headerSubtitle}>CONFIGURE FEED SOURCES & SCHEDULES</Text>
+      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>SETTINGS</Text>
+        <Text style={[styles.headerSubtitle, { color: colors.primary }]}>CONFIGURE FEED SOURCES & SCHEDULES</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Profile Card / Dynamic user info */}
-        <View style={styles.profileCard}>
-          <View style={styles.avatar}>
-            <Ionicons name="person" size={24} color="#fcf9f8" />
+        <View style={[styles.profileCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          <View style={[styles.avatar, { backgroundColor: colors.border }]}>
+            <Ionicons name="person" size={24} color={colors.background} />
           </View>
           <View style={styles.profileText}>
-            <Text style={styles.profileName}>{username}</Text>
-            <Text style={styles.profileEmail}>{email}</Text>
+            <Text style={[styles.profileName, { color: colors.text }]}>{username}</Text>
+            <Text style={[styles.profileEmail, { color: colors.tabIconDefault }]}>{email}</Text>
           </View>
         </View>
 
         {/* Menu Section: Sources */}
-        <Text style={styles.sectionTitle}>Content Sources</Text>
-        <View style={styles.menuGroup}>
+        <Text style={[styles.sectionTitle, { color: colors.primary }]}>Content Sources</Text>
+        <View style={[styles.menuGroup, { backgroundColor: colors.background, borderColor: colors.border }]}>
           <SettingsMenuItem
             icon="logo-reddit"
             iconColor="#FF4500"
@@ -88,8 +93,8 @@ export default function SettingsHubScreen() {
         </View>
 
         {/* Menu Section: Preferences */}
-        <Text style={styles.sectionTitle}>Schedules & Saves</Text>
-        <View style={styles.menuGroup}>
+        <Text style={[styles.sectionTitle, { color: colors.primary }]}>Schedules & Saves</Text>
+        <View style={[styles.menuGroup, { backgroundColor: colors.background, borderColor: colors.border }]}>
           <SettingsMenuItem
             icon="timer-outline"
             iconColor="#FF9500"
@@ -107,24 +112,39 @@ export default function SettingsHubScreen() {
         </View>
 
         {/* Info Card */}
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>CRAWLER CORE ENGINE V1.0.0</Text>
-          <Text style={styles.infoBody}>
+        <View style={[styles.infoCard, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
+          <Text style={[styles.infoTitle, { color: colors.primary }]}>CRAWLER CORE ENGINE V1.0.0</Text>
+          <Text style={[styles.infoBody, { color: colors.text }]}>
             This application uses Groq Llama 3.3 for summarizing. Feeds are crawled asynchronously via FastAPI background tasks and stored in Supabase PostgreSQL database.
           </Text>
         </View>
 
         {/* Sign Out Button */}
         <Pressable 
-          style={[styles.menuItem, styles.logoutButton]}
+          style={[
+            styles.menuItem, 
+            styles.logoutButton, 
+            { 
+              borderColor: colors.border, 
+              backgroundColor: isDark ? '#2c1816' : '#fcf0ef',
+              borderBottomColor: colors.border
+            }
+          ]}
           onPress={signOut}
         >
-          <View style={[styles.iconContainer, styles.logoutIconContainer]}>
-            <Ionicons name="log-out-outline" size={18} color="#aa352b" />
+          <View style={[
+            styles.iconContainer, 
+            styles.logoutIconContainer, 
+            { 
+              borderColor: colors.border, 
+              backgroundColor: isDark ? '#5a1f1b' : '#fcdcdb' 
+            }
+          ]}>
+            <Ionicons name="log-out-outline" size={18} color={colors.primary} />
           </View>
           <View style={styles.textContainer}>
-            <Text style={[styles.menuTitle, styles.logoutTitle]}>LOGOUT</Text>
-            <Text style={styles.menuSubtitle}>Sign out of your Supabase account</Text>
+            <Text style={[styles.menuTitle, styles.logoutTitle, { color: colors.primary }]}>LOGOUT</Text>
+            <Text style={[styles.menuSubtitle, { color: colors.tabIconDefault }]}>Sign out of your Supabase account</Text>
           </View>
         </Pressable>
       </ScrollView>

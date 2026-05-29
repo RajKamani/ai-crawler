@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, Linking } from 'react-native';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { PostType } from './PostCard';
+import { useTheme } from '@/hooks/useTheme';
 
 interface GitHubRepoCardProps {
   post: PostType;
@@ -14,6 +15,8 @@ export const GitHubRepoCard: React.FC<GitHubRepoCardProps> = ({
   onSummarize,
   onToggleBookmark,
 }) => {
+  const colors = useTheme();
+  const isDark = colors.background === '#141313';
   const repoData = post.raw_data || {};
   const stars = repoData.stars ?? 0;
   const forks = repoData.forks ?? 0;
@@ -54,14 +57,14 @@ export const GitHubRepoCard: React.FC<GitHubRepoCardProps> = ({
   };
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.background, borderColor: colors.border }]}>
       {/* Top Source Info */}
       <View style={styles.header}>
-        <View style={styles.sourceBadge}>
-          <FontAwesome5 name="github" size={13} color="#1c1b1b" />
-          <Text style={styles.sourceText}>GitHub Trending</Text>
+        <View style={[styles.sourceBadge, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
+          <FontAwesome5 name="github" size={13} color={colors.text} />
+          <Text style={[styles.sourceText, { color: colors.text }]}>GitHub Trending</Text>
         </View>
-        <Text style={styles.languageText}>
+        <Text style={[styles.languageText, { color: colors.text }]}>
           <View
             style={[
               styles.langDot,
@@ -75,14 +78,14 @@ export const GitHubRepoCard: React.FC<GitHubRepoCardProps> = ({
       {/* Repo Title (Owner / RepoName) */}
       <Pressable onPress={() => Linking.openURL(post.url)}>
         <View style={styles.repoTitleContainer}>
-          <Text style={styles.ownerText}>{owner} /</Text>
-          <Text style={styles.repoNameText}>{repoName}</Text>
+          <Text style={[styles.ownerText, { color: colors.tabIconDefault }]}>{owner} /</Text>
+          <Text style={[styles.repoNameText, { color: colors.primary }]}>{repoName}</Text>
         </View>
       </Pressable>
 
       {/* Repo Description */}
       {post.content ? (
-        <Text style={styles.description} numberOfLines={3}>
+        <Text style={[styles.description, { color: colors.text }]} numberOfLines={3}>
           {post.content.split('\n')[0]} {/* Print only description first line */}
         </Text>
       ) : null}
@@ -90,12 +93,12 @@ export const GitHubRepoCard: React.FC<GitHubRepoCardProps> = ({
       {/* Stats Row */}
       <View style={styles.statsRow}>
         <View style={styles.stat}>
-          <Ionicons name="star" size={14} color="#bc000a" />
-          <Text style={styles.statValue}>{stars.toLocaleString()}</Text>
+          <Ionicons name="star" size={14} color={colors.primary} />
+          <Text style={[styles.statValue, { color: colors.text }]}>{stars.toLocaleString()}</Text>
         </View>
         <View style={styles.stat}>
-          <FontAwesome5 name="code-branch" size={12} color="#1c1b1b" />
-          <Text style={styles.statValue}>{forks.toLocaleString()}</Text>
+          <FontAwesome5 name="code-branch" size={12} color={colors.text} />
+          <Text style={[styles.statValue, { color: colors.text }]}>{forks.toLocaleString()}</Text>
         </View>
       </View>
 
@@ -103,28 +106,28 @@ export const GitHubRepoCard: React.FC<GitHubRepoCardProps> = ({
       {topics.length > 0 && (
         <View style={styles.topicsContainer}>
           {topics.slice(0, 4).map((topic: string, idx: number) => (
-            <View key={idx} style={styles.topicBadge}>
-              <Text style={styles.topicText}>{topic}</Text>
+            <View key={idx} style={[styles.topicBadge, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
+              <Text style={[styles.topicText, { color: isDark ? '#5bc0de' : '#00647f' }]}>{topic}</Text>
             </View>
           ))}
         </View>
       )}
 
       {/* Bottom Action Bar */}
-      <View style={styles.actionBar}>
+      <View style={[styles.actionBar, { borderTopColor: colors.border }]}>
         <Pressable
           style={styles.actionButton}
           onPress={() => Linking.openURL(post.url)}
         >
-          <Ionicons name="logo-github" size={16} color="#1c1b1b" />
-          <Text style={styles.actionText}>View Repo</Text>
+          <Ionicons name="logo-github" size={16} color={colors.text} />
+          <Text style={[styles.actionText, { color: colors.text }]}>View Repo</Text>
         </Pressable>
 
         <View style={styles.rightActions}>
           {/* AI Summary Button */}
-          <Pressable style={styles.summarizeBtn} onPress={() => onSummarize(post.id)}>
-            <Ionicons name="sparkles" size={14} color="#bc000a" />
-            <Text style={styles.summarizeText}>AI Summary</Text>
+          <Pressable style={[styles.summarizeBtn, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]} onPress={() => onSummarize(post.id)}>
+            <Ionicons name="sparkles" size={14} color={colors.primary} />
+            <Text style={[styles.summarizeText, { color: colors.primary }]}>AI Summary</Text>
           </Pressable>
 
           {/* Bookmark Button */}
@@ -135,7 +138,7 @@ export const GitHubRepoCard: React.FC<GitHubRepoCardProps> = ({
             <Ionicons
               name={post.is_bookmarked ? 'bookmark' : 'bookmark-outline'}
               size={20}
-              color={post.is_bookmarked ? '#bc000a' : '#1c1b1b'}
+              color={post.is_bookmarked ? colors.primary : colors.text}
             />
           </Pressable>
         </View>

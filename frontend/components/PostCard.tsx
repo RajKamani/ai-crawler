@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Linking, Image } from 'react-native';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/hooks/useTheme';
 
 export interface PostType {
   id: string;
@@ -80,6 +81,8 @@ export const PostCard: React.FC<PostCardProps> = ({
   onSummarize,
   onToggleBookmark,
 }) => {
+  const colors = useTheme();
+  const isDark = colors.background === '#141313';
   const sourceType = post.sources?.type || 'blog';
   const sourceName = post.sources?.name || post.author || 'Blog';
 
@@ -103,22 +106,22 @@ export const PostCard: React.FC<PostCardProps> = ({
     switch (sourceType) {
       case 'reddit':
         return {
-          accentColor: '#aa352b', // Secondary (Alert Red-Brown)
+          accentColor: isDark ? '#ff6b6b' : '#aa352b', // Secondary (Alert Red-Brown)
           icon: 'reddit',
-          bgAccent: '#f0eded',
+          bgAccent: colors.surfaceContainer,
         };
       case 'github':
         return {
-          accentColor: '#00647f', // Tertiary (Deep Blue)
+          accentColor: isDark ? '#5bc0de' : '#00647f', // Tertiary (Deep Blue)
           icon: 'github',
-          bgAccent: '#f0eded',
+          bgAccent: colors.surfaceContainer,
         };
       case 'blog':
       default:
         return {
-          accentColor: '#bc000a', // Primary (Alert Red)
+          accentColor: colors.primary, // Primary (Alert Red)
           icon: 'rss',
-          bgAccent: '#f0eded',
+          bgAccent: colors.surfaceContainer,
         };
     }
   };
@@ -126,28 +129,28 @@ export const PostCard: React.FC<PostCardProps> = ({
   const theme = getSourceStyles();
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.background, borderColor: colors.border }]}>
       {/* Top Header Row */}
       <View style={styles.header}>
-        <View style={styles.sourceBadge}>
+        <View style={[styles.sourceBadge, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
           <FontAwesome5 name={theme.icon} size={13} color={theme.accentColor} />
           <Text style={[styles.sourceText, { color: theme.accentColor }]}>
             {sourceName}
           </Text>
         </View>
-        <Text style={styles.dateText}>{formatDate(post.published_at)}</Text>
+        <Text style={[styles.dateText, { color: colors.text }]}>{formatDate(post.published_at)}</Text>
       </View>
 
       {/* Post Title */}
       <Pressable onPress={() => Linking.openURL(post.url)}>
-        <Text style={styles.title} numberOfLines={3}>
+        <Text style={[styles.title, { color: colors.text }]} numberOfLines={3}>
           {post.title}
         </Text>
       </Pressable>
 
       {/* Media Preview if present */}
       {getMediaUrl(post) ? (
-        <View style={styles.mediaContainer}>
+        <View style={[styles.mediaContainer, { borderColor: colors.border }]}>
           <Image
             source={{ uri: getMediaUrl(post)! }}
             style={styles.mediaImage}
@@ -158,7 +161,7 @@ export const PostCard: React.FC<PostCardProps> = ({
 
       {/* Snippet / Content Preview */}
       {post.content ? (
-        <Text style={styles.contentPreview} numberOfLines={3}>
+        <Text style={[styles.contentPreview, { color: colors.text }]} numberOfLines={3}>
           {post.content.replace(/\n+/g, ' ')}
         </Text>
       ) : null}
@@ -166,32 +169,32 @@ export const PostCard: React.FC<PostCardProps> = ({
       {/* Tags & Categories Row */}
       <View style={styles.tagsContainer}>
         {post.category && (
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{post.category.toUpperCase()}</Text>
+          <View style={[styles.categoryBadge, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
+            <Text style={[styles.categoryText, { color: colors.primary }]}>{post.category.toUpperCase()}</Text>
           </View>
         )}
         {post.tags &&
           post.tags.slice(0, 3).map((tag, idx) => (
             <View key={idx} style={styles.tagBadge}>
-              <Text style={styles.tagText}>#{tag}</Text>
+              <Text style={[styles.tagText, { color: colors.tabIconDefault }]}>#{tag}</Text>
             </View>
           ))}
       </View>
 
       {/* Bottom Action Bar */}
-      <View style={styles.actionBar}>
+      <View style={[styles.actionBar, { borderTopColor: colors.border }]}>
         <Pressable
           style={styles.actionButton}
           onPress={() => Linking.openURL(post.url)}
         >
-          <Ionicons name="open-outline" size={18} color="#1c1b1b" />
-          <Text style={styles.actionText}>Read Original</Text>
+          <Ionicons name="open-outline" size={18} color={colors.text} />
+          <Text style={[styles.actionText, { color: colors.text }]}>Read Original</Text>
         </Pressable>
 
         <View style={styles.rightActions}>
           {/* AI Summarize Button */}
           <Pressable
-            style={styles.summarizeBtn}
+            style={[styles.summarizeBtn, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}
             onPress={() => onSummarize(post.id)}
           >
             <Ionicons name="sparkles" size={14} color={theme.accentColor} />
@@ -208,7 +211,7 @@ export const PostCard: React.FC<PostCardProps> = ({
             <Ionicons
               name={post.is_bookmarked ? 'bookmark' : 'bookmark-outline'}
               size={20}
-              color={post.is_bookmarked ? '#bc000a' : '#1c1b1b'}
+              color={post.is_bookmarked ? colors.primary : colors.text}
             />
           </Pressable>
         </View>

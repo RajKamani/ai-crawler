@@ -11,8 +11,10 @@ import { API_BASE_URL, AUTH_HEADER } from '@/constants/Config';
 import { PostCard, PostType } from '@/components/PostCard';
 import { GitHubRepoCard } from '@/components/GitHubRepoCard';
 import { SummarizeSheet } from '@/components/SummarizeSheet';
+import { useTheme } from '@/hooks/useTheme';
 
 export default function BookmarksScreen() {
+  const colors = useTheme();
   const [posts, setPosts] = useState<PostType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -119,7 +121,7 @@ export default function BookmarksScreen() {
   }, [posts]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* List */}
       <FlatList
         data={posts}
@@ -130,11 +132,11 @@ export default function BookmarksScreen() {
         onRefresh={handleRefresh}
         ListEmptyComponent={
           isLoading ? (
-            <ActivityIndicator size="large" color="#bc000a" style={{ marginTop: 40 }} />
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
           ) : (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="bookmark-outline" size={48} color="#1c1b1b" />
-              <Text style={styles.emptyText}>NO SAVED BOOKMARKS YET.</Text>
+            <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
+              <Ionicons name="bookmark-outline" size={48} color={colors.text} />
+              <Text style={[styles.emptyText, { color: colors.tabIconDefault }]}>NO SAVED BOOKMARKS YET.</Text>
             </View>
           )
         }

@@ -12,8 +12,10 @@ import { API_BASE_URL, AUTH_HEADER } from '@/constants/Config';
 import { PostType } from '@/components/PostCard';
 import { InshortsCard } from '@/components/InshortsCard';
 import { useViewedPosts } from '@/hooks/useViewedPosts';
+import { useTheme } from '@/hooks/useTheme';
 
 export default function RedditScreen() {
+  const colors = useTheme();
   const [posts, setPosts] = useState<PostType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -154,16 +156,16 @@ export default function RedditScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>REDDIT IDEAS</Text>
-        <Text style={styles.headerSubtitle}>CURATED TOPICS & CUSTOM SUBREDDITS</Text>
+      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>REDDIT IDEAS</Text>
+        <Text style={[styles.headerSubtitle, { color: colors.primary }]}>CURATED TOPICS & CUSTOM SUBREDDITS</Text>
       </View>
 
       {/* Main Snapping Area */}
       <View
-        style={styles.feedWrapper}
+        style={[styles.feedWrapper, { backgroundColor: colors.background }]}
         onLayout={(e) => setContainerHeight(e.nativeEvent.layout.height)}
       >
         {containerHeight > 0 && (
@@ -189,21 +191,21 @@ export default function RedditScreen() {
             })}
             ListEmptyComponent={
               isLoading ? (
-                <View style={styles.centerContainer}>
-                  <ActivityIndicator size="large" color="#bc000a" />
+                <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+                  <ActivityIndicator size="large" color={colors.primary} />
                 </View>
               ) : (
-                <View style={styles.emptyContainer}>
-                  <Ionicons name="logo-reddit" size={48} color="#1c1b1b" />
-                  <Text style={styles.emptyText}>NO REDDIT POSTS AVAILABLE.</Text>
+                <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
+                  <Ionicons name="logo-reddit" size={48} color={colors.text} />
+                  <Text style={[styles.emptyText, { color: colors.tabIconDefault }]}>NO REDDIT POSTS AVAILABLE.</Text>
                 </View>
               )
             }
             ListFooterComponent={
               isLoading && posts.length > 0 ? (
-                <View style={styles.footerLoader}>
-                  <ActivityIndicator size="small" color="#bc000a" />
-                  <Text style={styles.footerLoaderText}>LOADING MORE REDDIT POSTS...</Text>
+                <View style={[styles.footerLoader, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={[styles.footerLoaderText, { color: colors.primary }]}>LOADING MORE REDDIT POSTS...</Text>
                 </View>
               ) : null
             }

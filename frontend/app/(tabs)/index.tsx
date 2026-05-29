@@ -16,8 +16,10 @@ import { PostType } from '@/components/PostCard';
 import { InshortsCard } from '@/components/InshortsCard';
 import { useViewedPosts } from '@/hooks/useViewedPosts';
 import { useNewContentNotification } from '@/hooks/useNewContentNotification';
+import { useTheme } from '@/hooks/useTheme';
 
 export default function HomeFeedScreen() {
+  const colors = useTheme();
   const [posts, setPosts] = useState<PostType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -218,19 +220,19 @@ export default function HomeFeedScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header Area */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
         <View style={styles.titleContainer}>
-          <Text style={styles.headerTitle}>AI CRAWLER</Text>
-          <Text style={styles.headerSubtitle}>PERSONALIZED FEED // INSHORTS</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>AI CRAWLER</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.primary }]}>PERSONALIZED FEED // INSHORTS</Text>
         </View>
       </View>
 
       {/* New updates banner */}
       {newPostsAvailable && (
         <Pressable
-          style={styles.newPostsBanner}
+          style={[styles.newPostsBanner, { backgroundColor: colors.primary, borderColor: colors.border }]}
           onPress={() => {
             setNewPostsAvailable(false);
             handleRefresh();
@@ -242,19 +244,19 @@ export default function HomeFeedScreen() {
       )}
 
       {/* Search Input */}
-      <View style={styles.searchBar}>
-        <Ionicons name="search" size={18} color="#1c1b1b" style={styles.searchIcon} />
+      <View style={[styles.searchBar, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
+        <Ionicons name="search" size={18} color={colors.text} style={styles.searchIcon} />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: colors.text }]}
           placeholder="SEARCH TOPICS, LIBRARIES, IDEAS..."
-          placeholderTextColor="#926f6a"
+          placeholderTextColor={colors.tabIconDefault}
           value={searchQuery}
           onChangeText={setSearchQuery}
           autoCorrect={false}
         />
         {searchQuery ? (
           <Pressable onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={18} color="#1c1b1b" />
+            <Ionicons name="close-circle" size={18} color={colors.text} />
           </Pressable>
         ) : null}
       </View>
@@ -270,14 +272,16 @@ export default function HomeFeedScreen() {
           <Pressable
             style={[
               styles.chipButton,
-              selectedSourceId === null && styles.chipActive,
+              { borderColor: colors.border, backgroundColor: colors.background },
+              selectedSourceId === null && { backgroundColor: colors.primary, borderColor: colors.primary },
             ]}
             onPress={() => setSelectedSourceId(null)}
           >
             <Text
               style={[
                 styles.chipText,
-                selectedSourceId === null && styles.chipActiveText,
+                { color: colors.text },
+                selectedSourceId === null && { color: '#ffffff' },
               ]}
             >
               ALL FEED
@@ -290,14 +294,16 @@ export default function HomeFeedScreen() {
                 key={src.id}
                 style={[
                   styles.chipButton,
-                  isActive && styles.chipActive,
+                  { borderColor: colors.border, backgroundColor: colors.background },
+                  isActive && { backgroundColor: colors.primary, borderColor: colors.primary },
                 ]}
                 onPress={() => setSelectedSourceId(src.id)}
               >
                 <Text
                   style={[
                     styles.chipText,
-                    isActive && styles.chipActiveText,
+                    { color: colors.text },
+                    isActive && { color: '#ffffff' },
                   ]}
                 >
                   {src.name.toUpperCase()}
@@ -310,7 +316,7 @@ export default function HomeFeedScreen() {
 
       {/* Main Snapping Area */}
       <View
-        style={styles.feedWrapper}
+        style={[styles.feedWrapper, { backgroundColor: colors.background }]}
         onLayout={(e) => setContainerHeight(e.nativeEvent.layout.height)}
       >
         {containerHeight > 0 && (
@@ -336,21 +342,21 @@ export default function HomeFeedScreen() {
             })}
             ListEmptyComponent={
               isLoading ? (
-                <View style={styles.centerContainer}>
-                  <ActivityIndicator size="large" color="#bc000a" />
+                <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+                  <ActivityIndicator size="large" color={colors.primary} />
                 </View>
               ) : (
-                <View style={styles.emptyContainer}>
-                  <Ionicons name="newspaper-outline" size={48} color="#1c1b1b" />
-                  <Text style={styles.emptyText}>NO POSTS AVAILABLE IN YOUR FEED.</Text>
+                <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
+                  <Ionicons name="newspaper-outline" size={48} color={colors.text} />
+                  <Text style={[styles.emptyText, { color: colors.tabIconDefault }]}>NO POSTS AVAILABLE IN YOUR FEED.</Text>
                 </View>
               )
             }
             ListFooterComponent={
               isLoading && posts.length > 0 ? (
-                <View style={styles.footerLoader}>
-                  <ActivityIndicator size="small" color="#bc000a" />
-                  <Text style={styles.footerLoaderText}>LOADING MORE POSTS...</Text>
+                <View style={[styles.footerLoader, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={[styles.footerLoaderText, { color: colors.primary }]}>LOADING MORE POSTS...</Text>
                 </View>
               ) : null
             }

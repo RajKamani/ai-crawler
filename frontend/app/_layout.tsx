@@ -12,6 +12,7 @@ import { AuthProvider, useAuth } from '../context/AuthContext';
 import { AuthScreen } from '../components/AuthScreen';
 import { supabase } from '../utils/supabase';
 import { API_BASE_URL } from '../constants/Config';
+import { useTheme } from '../hooks/useTheme';
 
 // Global Fetch Interceptor to inject Supabase Auth JWT Bearer token dynamically
 const originalFetch = global.fetch;
@@ -90,12 +91,13 @@ export default function RootLayout() {
 }
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
+  const colors = useTheme();
   const { session, isLoading } = useAuth();
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fcf9f8' }}>
-        <ActivityIndicator size="large" color="#bc000a" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -115,8 +117,8 @@ function RootLayoutNav() {
             options={{
               presentation: 'modal',
               headerShown: true,
-              headerStyle: { backgroundColor: '#fcf9f8' },
-              headerTintColor: '#1c1b1b',
+              headerStyle: { backgroundColor: colors.background },
+              headerTintColor: colors.text,
               headerTitleStyle: { fontFamily: 'SpaceMono', fontWeight: '700' },
               headerShadowVisible: false,
             }}
