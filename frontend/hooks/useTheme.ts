@@ -3,6 +3,10 @@ import Colors from '@/constants/Colors';
 
 export function useTheme() {
   const { theme } = useThemeContext();
-  return Colors[theme];
+  return {
+    ...Colors[theme],
+    isDark: theme === 'dark',
+  };
 }
+
 

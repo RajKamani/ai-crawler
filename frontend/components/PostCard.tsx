@@ -82,7 +82,7 @@ export const PostCard: React.FC<PostCardProps> = ({
   onToggleBookmark,
 }) => {
   const colors = useTheme();
-  const isDark = colors.background === '#141313';
+  const isDark = colors.isDark;
   const sourceType = post.sources?.type || 'blog';
   const sourceName = post.sources?.name || post.author || 'Blog';
 

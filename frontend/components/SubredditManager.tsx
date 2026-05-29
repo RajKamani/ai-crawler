@@ -37,7 +37,7 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
   onToggleSubreddit,
 }) => {
   const colors = useTheme();
-  const isDark = colors.background === '#141313';
+  const isDark = colors.isDark;
   const [newSub, setNewSub] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');

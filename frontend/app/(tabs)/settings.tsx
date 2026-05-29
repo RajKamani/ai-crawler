@@ -54,7 +54,7 @@ export default function SettingsHubScreen() {
   const email = user?.email || 'mock-user@local.host';
   const username = email.split('@')[0].toUpperCase();
 
-  const isDark = colors.background === '#141313';
+  const isDark = colors.isDark;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>

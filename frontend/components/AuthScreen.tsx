@@ -21,7 +21,7 @@ WebBrowser.maybeCompleteAuthSession();
 
 export const AuthScreen: React.FC = () => {
   const colors = useTheme();
-  const isDark = colors.background === '#141313';
+  const isDark = colors.isDark;
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

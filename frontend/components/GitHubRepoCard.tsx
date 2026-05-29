@@ -16,7 +16,7 @@ export const GitHubRepoCard: React.FC<GitHubRepoCardProps> = ({
   onToggleBookmark,
 }) => {
   const colors = useTheme();
-  const isDark = colors.background === '#141313';
+  const isDark = colors.isDark;
   const repoData = post.raw_data || {};
   const stars = repoData.stars ?? 0;
   const forks = repoData.forks ?? 0;

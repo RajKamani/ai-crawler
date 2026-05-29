@@ -66,7 +66,7 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
   isViewed = false,
 }) => {
   const colors = useTheme();
-  const isDark = colors.background === '#141313';
+  const isDark = colors.isDark;
   const [showSummary, setShowSummary] = useState(false);
   const [summaryText, setSummaryText] = useState<string | null>(post.ai_summary || null);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);

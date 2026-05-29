@@ -37,7 +37,7 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
   onToggleBlog,
 }) => {
   const colors = useTheme();
-  const isDark = colors.background === '#141313';
+  const isDark = colors.isDark;
   const [blogName, setBlogName] = useState('');
   const [blogUrl, setBlogUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
