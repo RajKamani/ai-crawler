@@ -18,34 +18,61 @@ import { useTheme } from '../hooks/useTheme';
 // Global Fetch Interceptor to inject Supabase Auth JWT Bearer token dynamically
 const originalFetch = global.fetch;
 global.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-  const url = typeof input === 'string' ? input : input.toString();
-  if (url.startsWith(API_BASE_URL)) {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    // Copy headers safely as a plain object to prevent React Native Headers class issues
-    const plainHeaders: Record<string, string> = {};
-    if (init?.headers) {
-      if (init.headers instanceof Headers) {
-        init.headers.forEach((value, key) => {
-          plainHeaders[key] = value;
-        });
-      } else if (Array.isArray(init.headers)) {
-        init.headers.forEach(([key, value]) => {
-          plainHeaders[key] = value;
-        });
+  try {
+    let url = '';
+    if (typeof input === 'string') {
+      url = input;
+    } else if (input && typeof input === 'object') {
+      const inputObj = input as any;
+      if ('url' in inputObj) {
+        url = inputObj.url;
+      } else if ('href' in inputObj) {
+        url = inputObj.href;
       } else {
-        Object.assign(plainHeaders, init.headers);
+        url = inputObj.toString();
       }
+    } else if (input) {
+      url = (input as any).toString();
     }
 
-    if (session?.access_token) {
-      plainHeaders['Authorization'] = `Bearer ${session.access_token}`;
-    } else {
-      plainHeaders['Authorization'] = 'Bearer mock-user-session-token-12345';
-    }
+    if (url && url.startsWith(API_BASE_URL)) {
+      let session = null;
+      try {
+        const { data } = await supabase.auth.getSession();
+        session = data?.session;
+      } catch (err) {
+        console.error('[Fetch Interceptor] Error getting Supabase session:', err);
+      }
+      
+      // Copy headers safely as a plain object to prevent React Native Headers class issues
+      const plainHeaders: Record<string, string> = {};
+      if (init?.headers) {
+        if (init.headers instanceof Headers) {
+          init.headers.forEach((value, key) => {
+            plainHeaders[key] = value;
+          });
+        } else if (Array.isArray(init.headers)) {
+          init.headers.forEach(([key, value]) => {
+            plainHeaders[key] = value;
+          });
+        } else {
+          Object.assign(plainHeaders, init.headers);
+        }
+      }
 
-    init = init || {};
-    init.headers = plainHeaders;
+      if (session?.access_token) {
+        plainHeaders['Authorization'] = `Bearer ${session.access_token}`;
+      } else {
+        plainHeaders['Authorization'] = 'Bearer mock-user-session-token-12345';
+      }
+
+      // Clone init to prevent modifying frozen/read-only parameters in React Native / Hermes
+      const clonedInit = init ? { ...init } : {};
+      clonedInit.headers = plainHeaders;
+      init = clonedInit;
+    }
+  } catch (err) {
+    console.error('[Fetch Interceptor] General interceptor crash:', err);
   }
   return originalFetch(input, init);
 };

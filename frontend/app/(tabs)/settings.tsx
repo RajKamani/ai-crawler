@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, View, Text, Pressable, ScrollView, Switch, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useThemeContext } from '../../context/ThemeContext';
@@ -28,22 +28,23 @@ const SettingsMenuItem: React.FC<SettingsMenuItemProps> = ({
 }) => {
   const colors = useTheme();
   return (
-    <Link href={href} asChild>
-      <Pressable style={[styles.menuItem, { borderBottomColor: colors.border }, isLast && { borderBottomWidth: 0 }]}>
-        <View style={[styles.iconContainer, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
-          {isFontAwesome ? (
-            <FontAwesome5 name={icon} size={16} color={colors.text} />
-          ) : (
-            <Ionicons name={icon as any} size={18} color={colors.text} />
-          )}
-        </View>
-        <View style={styles.textContainer}>
-          <Text style={[styles.menuTitle, { color: colors.text }]}>{title.toUpperCase()}</Text>
-          <Text style={[styles.menuSubtitle, { color: colors.tabIconDefault }]}>{subtitle}</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={colors.text} />
-      </Pressable>
-    </Link>
+    <Pressable
+      style={[styles.menuItem, { borderBottomColor: colors.border }, isLast && { borderBottomWidth: 0 }]}
+      onPress={() => router.push(href)}
+    >
+      <View style={[styles.iconContainer, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
+        {isFontAwesome ? (
+          <FontAwesome5 name={icon} size={16} color={colors.text} />
+        ) : (
+          <Ionicons name={icon as any} size={18} color={colors.text} />
+        )}
+      </View>
+      <View style={styles.textContainer}>
+        <Text style={[styles.menuTitle, { color: colors.text }]}>{title.toUpperCase()}</Text>
+        <Text style={[styles.menuSubtitle, { color: colors.tabIconDefault }]}>{subtitle}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={colors.text} />
+    </Pressable>
   );
 };
 
@@ -114,7 +115,7 @@ export default function SettingsHubScreen() {
             subtitle="View your saved articles & repos"
             href="/settings/bookmarks"
           />
-          <View style={[styles.menuItem, { borderBottomWidth: 0, justifyContent: 'space-between', alignItems: 'center' }]}>
+          <View style={[styles.menuItem, { borderBottomColor: colors.border, borderBottomWidth: 0 }]}>
             <View style={[styles.iconContainer, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
               <Ionicons name={theme === 'dark' ? 'moon' : 'sunny'} size={18} color={colors.text} />
             </View>
