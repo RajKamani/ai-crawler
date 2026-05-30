@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "*"  # Comma-separated list of origins
     LOG_LEVEL: str = "INFO"
     DATABASE_URL: Optional[str] = None
+    ENABLE_CRAWLER_WORKER_POOL: bool = True
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
