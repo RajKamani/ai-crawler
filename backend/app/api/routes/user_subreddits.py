@@ -68,17 +68,44 @@ async def add_subreddit(body: SubredditAdd, user = Depends(get_current_user)):
     except httpx.RequestError as e:
         logger.warning(f"Network error verifying subreddit: {e}. Bypassing verification.")
 
-    # 3. Add to user_subreddits table
+    # 3. Add to user_subreddits table and fetch preview posts
     try:
         res = supabase.table("user_subreddits").insert({
             "user_id": user.id,
             "subreddit_name": f"r/{subreddit_name}",
             "is_active": True
         }).execute()
-        return {"subreddit": res.data[0], "message": f"r/{subreddit_name} added successfully."}
+
+        # Fetch up to 3 preview post titles from Reddit public JSON
+        preview_posts = []
+        try:
+            preview_url = f"https://www.reddit.com/r/{subreddit_name}/hot.json?limit=3"
+            preview_headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+            async with httpx.AsyncClient() as preview_client:
+                preview_res = await preview_client.get(preview_url, headers=preview_headers, timeout=5.0)
+                if preview_res.status_code == 200:
+                    children = preview_res.json().get("data", {}).get("children", [])
+                    for child in children[:3]:
+                        d = child.get("data", {})
+                        if not d.get("stickied"):
+                            preview_posts.append({
+                                "title": d.get("title", ""),
+                                "url": f"https://reddit.com{d.get('permalink', '')}",
+                                "score": d.get("score", 0)
+                            })
+        except Exception:
+            pass  # Preview is best-effort
+
+        return {
+            "subreddit": res.data[0],
+            "message": f"r/{subreddit_name} validated and added to your feed.",
+            "preview_posts": preview_posts,
+            "posts_found": len(preview_posts)
+        }
     except Exception as e:
         logger.error(f"Failed to add user subreddit: {e}")
         raise HTTPException(500, f"Database error: {str(e)}")
+
 
 @router.delete("/api/v1/me/subreddits/{sub_id}")
 async def remove_subreddit(sub_id: str, user = Depends(get_current_user)):

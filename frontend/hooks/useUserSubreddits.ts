@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { API_BASE_URL, AUTH_HEADER } from '../constants/Config';
 import { getErrorMessage } from '../utils/error';
+import { PreviewPost } from './useUserBlogs';
 
 export interface Subreddit {
   id: string;
@@ -46,7 +47,7 @@ export const useUserSubreddits = () => {
     }
   };
 
-  const addSubreddit = async (name: string) => {
+  const addSubreddit = async (name: string): Promise<{ preview_posts: PreviewPost[]; posts_found: number; message: string }> => {
     const response = await fetch(`${API_BASE_URL}/me/subreddits`, {
       method: 'POST',
       headers: {
@@ -62,6 +63,11 @@ export const useUserSubreddits = () => {
     }
 
     setSubreddits((prev) => [data.subreddit, ...prev]);
+    return {
+      message: data.message || `${name} validated and added.`,
+      preview_posts: data.preview_posts || [],
+      posts_found: data.posts_found ?? 0,
+    };
   };
 
   const removeSubreddit = async (id: string) => {

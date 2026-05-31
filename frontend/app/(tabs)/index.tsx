@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { API_BASE_URL, AUTH_HEADER } from '@/constants/Config';
 import { PostType } from '@/components/PostCard';
 import { InshortsCard } from '@/components/InshortsCard';
@@ -28,7 +29,9 @@ export default function HomeFeedScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [sources, setSources] = useState<Array<{ id: string; name: string; type: string }>>([]);
+  const [sourcesLoaded, setSourcesLoaded] = useState(false);
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+  const [selectedType, setSelectedType] = useState<string | null>(null);
   
   // Height container measurement
   const [containerHeight, setContainerHeight] = useState(0);
@@ -64,6 +67,8 @@ export default function HomeFeedScreen() {
         }
       } catch (error) {
         console.error('Error fetching sources:', error);
+      } finally {
+        setSourcesLoaded(true);
       }
     };
     fetchSources();
@@ -77,11 +82,11 @@ export default function HomeFeedScreen() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Reset feed on search query or selected source change
+  // Reset feed on search query, selected source change, or selected type change
   useEffect(() => {
     setHasMore(true);
     fetchFeed(1, true);
-  }, [debouncedQuery, selectedSourceId]);
+  }, [debouncedQuery, selectedSourceId, selectedType]);
 
   const fetchFeed = async (pageNum: number, shouldReset = false) => {
     if (isLoading) return;
@@ -90,17 +95,15 @@ export default function HomeFeedScreen() {
       setPosts([]);
     }
     try {
-      let url = `${API_BASE_URL}/posts/personalized?page=${pageNum}&limit=10`;
+      let url = `${API_BASE_URL}/posts?page=${pageNum}&limit=10`;
+      if (selectedType) {
+        url += `&type=${selectedType}`;
+      }
       if (selectedSourceId) {
         url += `&source_id=${selectedSourceId}`;
       }
       if (debouncedQuery.trim()) {
-        url = `${API_BASE_URL}/posts?page=${pageNum}&limit=10&q=${encodeURIComponent(
-          debouncedQuery
-        )}`;
-        if (selectedSourceId) {
-          url += `&source_id=${selectedSourceId}`;
-        }
+        url += `&q=${encodeURIComponent(debouncedQuery)}`;
       }
 
       const response = await fetch(url, {
@@ -261,58 +264,101 @@ export default function HomeFeedScreen() {
         ) : null}
       </View>
 
-      {/* Scrollable Provider Selection Chips */}
-      {sources.length > 0 && (
+      {/* Scrollable Type Selection Chips */}
+      <View style={{ height: 42, marginBottom: 4 }}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.chipsScrollView}
-          contentContainerStyle={styles.chipsContent}
+          style={styles.typeChipsScrollView}
+          contentContainerStyle={styles.typeChipsContent}
         >
-          <Pressable
-            style={[
-              styles.chipButton,
-              { borderColor: colors.border, backgroundColor: colors.background },
-              selectedSourceId === null && { backgroundColor: colors.primary, borderColor: colors.primary },
-            ]}
-            onPress={() => setSelectedSourceId(null)}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                { color: colors.text },
-                selectedSourceId === null && { color: '#ffffff' },
-              ]}
-            >
-              ALL FEED
-            </Text>
-          </Pressable>
-          {sources.map((src) => {
-            const isActive = selectedSourceId === src.id;
+          {['ALL', 'REDDIT', 'BLOGS', 'GITHUB'].map((type) => {
+            const typeVal = type === 'ALL' ? null : type.toLowerCase().replace('blogs', 'blog');
+            const isTypeActive = selectedType === typeVal;
             return (
               <Pressable
-                key={src.id}
+                key={type}
                 style={[
-                  styles.chipButton,
+                  styles.typeChipButton,
                   { borderColor: colors.border, backgroundColor: colors.background },
-                  isActive && { backgroundColor: colors.primary, borderColor: colors.primary },
+                  isTypeActive && { backgroundColor: colors.primary, borderColor: colors.primary },
                 ]}
-                onPress={() => setSelectedSourceId(src.id)}
+                onPress={() => {
+                  setSelectedSourceId(null);
+                  setSelectedType(typeVal);
+                }}
               >
                 <Text
                   style={[
-                    styles.chipText,
+                    styles.typeChipText,
                     { color: colors.text },
-                    isActive && { color: '#ffffff' },
+                    isTypeActive && { color: '#ffffff' },
                   ]}
                 >
-                  {src.name.toUpperCase()}
+                  {type}
                 </Text>
               </Pressable>
             );
           })}
         </ScrollView>
-      )}
+      </View>
+
+      {/* Scrollable Provider Selection Chips */}
+      {(() => {
+        const filteredSources = sources.filter(src => !selectedType || src.type === selectedType);
+        if (filteredSources.length === 0) return null;
+        return (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.chipsScrollView}
+            contentContainerStyle={styles.chipsContent}
+          >
+            <Pressable
+              style={[
+                styles.chipButton,
+                { borderColor: colors.border, backgroundColor: colors.background },
+                selectedSourceId === null && { backgroundColor: colors.primary, borderColor: colors.primary },
+              ]}
+              onPress={() => setSelectedSourceId(null)}
+            >
+              <Text
+                style={[
+                  styles.chipText,
+                  { color: colors.text },
+                  selectedSourceId === null && { color: '#ffffff' },
+                ]}
+              >
+                ALL {selectedType ? selectedType.toUpperCase() + 'S' : 'FEED'}
+              </Text>
+            </Pressable>
+            {filteredSources.map((src) => {
+              const isActive = selectedSourceId === src.id;
+              return (
+                <Pressable
+                  key={src.id}
+                  style={[
+                    styles.chipButton,
+                    { borderColor: colors.border, backgroundColor: colors.background },
+                    isActive && { backgroundColor: colors.primary, borderColor: colors.primary },
+                  ]}
+                  onPress={() => setSelectedSourceId(src.id)}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      { color: colors.text },
+                      isActive && { color: '#ffffff' },
+                    ]}
+                  >
+                    {src.name.toUpperCase()}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        );
+      })()}
 
       {/* Main Snapping Area */}
       <View
@@ -345,10 +391,37 @@ export default function HomeFeedScreen() {
                 <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
                   <ActivityIndicator size="large" color={colors.primary} />
                 </View>
+              ) : sourcesLoaded && sources.length === 0 && selectedType !== 'github' ? (
+                // No sources selected at all — guide user to add some
+                <View style={[styles.noSourcesContainer, { backgroundColor: colors.background }]}>
+                  <View style={[styles.noSourcesIconBox, { borderColor: colors.border, backgroundColor: colors.surfaceContainer }]}>
+                    <Ionicons name="add-circle-outline" size={40} color={colors.primary} />
+                  </View>
+                  <Text style={[styles.noSourcesTitle, { color: colors.text }]}>YOUR FEED IS EMPTY</Text>
+                  <Text style={[styles.noSourcesSubtitle, { color: colors.tabIconDefault }]}>
+                    You haven't added any sources yet.{`\n`}Follow subreddits or RSS blogs to start seeing personalised content.
+                  </Text>
+                  <Pressable
+                    style={[styles.addSourcesBtn, { backgroundColor: colors.primary, borderColor: colors.border }]}
+                    onPress={() => router.push('/settings')}
+                  >
+                    <Ionicons name="settings-outline" size={16} color="#ffffff" />
+                    <Text style={styles.addSourcesBtnText}>GO TO SETTINGS → ADD SOURCES</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.addSourcesSecondaryBtn, { borderColor: colors.border, backgroundColor: colors.surfaceContainer }]}
+                    onPress={() => router.push('/settings/subreddits')}
+                  >
+                    <Ionicons name="logo-reddit" size={14} color={colors.text} />
+                    <Text style={[styles.addSourcesSecondaryText, { color: colors.text }]}>BROWSE POPULAR SUBREDDITS</Text>
+                  </Pressable>
+                </View>
               ) : (
+                // Sources exist but no posts yet (crawl pending)
                 <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
-                  <Ionicons name="newspaper-outline" size={48} color={colors.text} />
-                  <Text style={[styles.emptyText, { color: colors.tabIconDefault }]}>NO POSTS AVAILABLE IN YOUR FEED.</Text>
+                  <Ionicons name="hourglass-outline" size={48} color={colors.text} />
+                  <Text style={[styles.emptyText, { color: colors.tabIconDefault }]}>CRAWLING YOUR SOURCES...</Text>
+                  <Text style={[styles.emptySubText, { color: colors.tabIconDefault }]}>Posts will appear here shortly. Pull down to refresh.</Text>
                 </View>
               )
             }
@@ -434,14 +507,82 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 100,
+    paddingVertical: 80,
     gap: 12,
     backgroundColor: '#fcf9f8',
+    paddingHorizontal: 32,
   },
   emptyText: {
     color: '#926f6a',
     fontSize: 13,
     textAlign: 'center',
+    fontFamily: 'SpaceMono',
+  },
+  emptySubText: {
+    color: '#926f6a',
+    fontSize: 11,
+    textAlign: 'center',
+    fontFamily: 'SpaceMono',
+    lineHeight: 17,
+  },
+  noSourcesContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 32,
+    gap: 16,
+    backgroundColor: '#fcf9f8',
+  },
+  noSourcesIconBox: {
+    width: 72,
+    height: 72,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  noSourcesTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
+    textAlign: 'center',
+  },
+  noSourcesSubtitle: {
+    fontSize: 12,
+    fontFamily: 'SpaceMono',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  addSourcesBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderWidth: 1,
+    marginTop: 4,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  addSourcesBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
+  },
+  addSourcesSecondaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderWidth: 1,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  addSourcesSecondaryText: {
+    fontSize: 11,
+    fontWeight: '700',
     fontFamily: 'SpaceMono',
   },
   footerLoader: {
@@ -469,6 +610,29 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingRight: 20,
     alignItems: 'center',
+  },
+  typeChipsScrollView: {
+    maxHeight: 40,
+    marginHorizontal: 20,
+  },
+  typeChipsContent: {
+    gap: 8,
+    paddingRight: 20,
+    alignItems: 'center',
+  },
+  typeChipButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#1c1b1b',
+    backgroundColor: '#fcf9f8',
+    borderRadius: 0,
+  },
+  typeChipText: {
+    color: '#1c1b1b',
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
   chipButton: {
     paddingHorizontal: 12,

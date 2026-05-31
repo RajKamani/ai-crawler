@@ -7,9 +7,11 @@ import {
   StyleSheet,
   ActivityIndicator,
   Switch,
+  Linking,
 } from 'react-native';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
+import { PreviewPost } from '@/hooks/useUserBlogs';
 
 interface BlogItem {
   id: string;
@@ -23,7 +25,7 @@ interface BlogManagerProps {
   blogs: BlogItem[];
   suggestions: Array<{ name: string; url: string }>;
   isLoading: boolean;
-  onAddBlog: (name: string, url: string) => Promise<void>;
+  onAddBlog: (name: string, url: string) => Promise<{ preview_posts: PreviewPost[]; posts_found: number; message: string }>;
   onRemoveBlog: (id: string) => Promise<void>;
   onToggleBlog: (id: string, isActive: boolean) => Promise<void>;
 }
@@ -42,7 +44,8 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
   const [blogUrl, setBlogUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [updatingItems, setUpdatingItems] = useState<Record<string, 'toggle' | 'delete'>>({});
+  const [successResult, setSuccessResult] = useState<{ message: string; preview_posts: PreviewPost[]; posts_found: number } | null>(null);
+  const [updatingItems, setUpdatingItems] = useState<Record<string, 'toggle' | 'delete'>>({}); 
 
   const handleAdd = async (name: string, url: string) => {
     const trimmedName = name.trim();
@@ -54,10 +57,12 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
     
     setIsSubmitting(true);
     setErrorMsg('');
+    setSuccessResult(null);
     try {
-      await onAddBlog(trimmedName, trimmedUrl);
+      const result = await onAddBlog(trimmedName, trimmedUrl);
       setBlogName('');
       setBlogUrl('');
+      setSuccessResult(result);
     } catch (err: any) {
       setErrorMsg(err.message || 'Could not parse RSS feed.');
     } finally {
@@ -161,6 +166,47 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
       </View>
 
       {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
+
+      {/* Validation Success Banner */}
+      {successResult && (
+        <View style={[styles.successBanner, { borderColor: colors.border, backgroundColor: colors.surfaceContainer }]}>
+          <View style={styles.successHeader}>
+            <Ionicons name="checkmark-circle" size={18} color="#22c55e" />
+            <Text style={[styles.successTitle, { color: '#22c55e' }]}>SOURCE VALIDATED ✓</Text>
+          </View>
+          <Text style={[styles.successMsg, { color: colors.text }]}>{successResult.message}</Text>
+          {successResult.preview_posts.length > 0 && (
+            <>
+              <Text style={[styles.previewLabel, { color: colors.tabIconDefault }]}>
+                PREVIEW — {successResult.posts_found} POST{successResult.posts_found !== 1 ? 'S' : ''} FOUND
+              </Text>
+              {successResult.preview_posts.map((post, idx) => (
+                <Pressable
+                  key={idx}
+                  style={[styles.previewItem, { borderColor: colors.border }]}
+                  onPress={() => post.url ? Linking.openURL(post.url) : null}
+                >
+                  <Text style={[styles.previewItemText, { color: colors.text }]} numberOfLines={2}>
+                    {post.title}
+                  </Text>
+                  {post.published && (
+                    <Text style={[styles.previewItemMeta, { color: colors.tabIconDefault }]}>{post.published}</Text>
+                  )}
+                  {post.score !== undefined && (
+                    <Text style={[styles.previewItemMeta, { color: colors.tabIconDefault }]}>↑ {post.score.toLocaleString()}</Text>
+                  )}
+                </Pressable>
+              ))}
+            </>
+          )}
+          <Text style={[styles.successFooter, { color: colors.tabIconDefault }]}>
+            Background crawler will populate your feed shortly.
+          </Text>
+          <Pressable onPress={() => setSuccessResult(null)} style={styles.dismissBtn}>
+            <Text style={[styles.dismissText, { color: colors.primary }]}>DISMISS</Text>
+          </Pressable>
+        </View>
+      )}
 
       {/* Suggestions */}
       <Text style={[styles.subTitle, { color: colors.primary }]}>QUICK ADD POPULAR FEEDS</Text>
@@ -415,4 +461,65 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  successBanner: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderRadius: 0,
+    padding: 14,
+    gap: 8,
+  },
+  successHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  successTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
+  },
+  successMsg: {
+    fontSize: 12,
+    fontFamily: 'SpaceMono',
+    lineHeight: 16,
+  },
+  previewLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
+    marginTop: 4,
+  },
+  previewItem: {
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 2,
+  },
+  previewItemText: {
+    fontSize: 11,
+    fontFamily: 'SpaceMono',
+    lineHeight: 15,
+  },
+  previewItemMeta: {
+    fontSize: 10,
+    fontFamily: 'SpaceMono',
+    marginTop: 2,
+  },
+  successFooter: {
+    fontSize: 10,
+    fontFamily: 'SpaceMono',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  dismissBtn: {
+    alignSelf: 'flex-end',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  dismissText: {
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
+  },
 });
+

@@ -37,6 +37,7 @@ async def trigger_crawl(
         log_id = start_crawl_log(crawler_name, user_id=user.id)
     else:
         log_id = start_crawl_log(crawler_name)
+        
     if not log_id:
         raise HTTPException(500, "Failed to initialize crawl log")
 

@@ -19,10 +19,10 @@ POPULAR_BLOG_SUGGESTIONS = [
     {"name": "Jay Alammar", "url": "https://jalammar.github.io/feed.xml"},
     {"name": "Chip Huyen", "url": "https://huyenchip.com/feed.xml"},
     {"name": "AI Snake Oil", "url": "https://www.aisnakeoil.com/feed"},
-    {"name": "Claude News", "url": "https://raw.githubusercontent.com/taobojlen/anthropic-rss-feed/main/anthropic_news_rss.xml"},
-    {"name": "Claude blog", "url": "https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_claude.xml"},
-    {"name": "OpenAI blog", "url": "https://openai.com/news/rss.xml"}
-    
+    {"name": "Anthropic Blog", "url": "https://www.anthropic.com/blog/rss"},
+    {"name": "OpenAI Blog", "url": "https://openai.com/blog/rss.xml"},
+    {"name": "Google DeepMind Blog", "url": "https://deepmind.google/blog/rss.xml"},
+    {"name": "Meta AI Blog", "url": "https://ai.meta.com/blog/rss/"}
 ]
 
 @router.get("/api/v1/me/blogs")
@@ -64,7 +64,7 @@ async def add_blog(body: BlogAdd, user = Depends(get_current_user)):
         logger.error(f"RSS parser failed for {url}: {e}")
         raise HTTPException(400, f"Failed to parse RSS feed: {str(e)}")
     
-    # 3. Save to user_blogs table
+    # 3. Save to user_blogs table and fetch preview posts
     try:
         result = supabase.table("user_blogs").insert({
             "user_id": user.id,
@@ -72,7 +72,26 @@ async def add_blog(body: BlogAdd, user = Depends(get_current_user)):
             "blog_url": url,
             "is_active": True
         }).execute()
-        return {"blog": result.data[0], "message": f"{name} added to your feed"}
+
+        # Fetch up to 3 preview posts from the RSS feed
+        preview_posts = []
+        try:
+            preview_feed = feedparser.parse(url)
+            for entry in preview_feed.entries[:3]:
+                preview_posts.append({
+                    "title": entry.get("title", "Untitled"),
+                    "url": entry.get("link", ""),
+                    "published": str(entry.get("published", "") or entry.get("updated", ""))[:10]
+                })
+        except Exception:
+            pass  # Preview is best-effort
+
+        return {
+            "blog": result.data[0],
+            "message": f"{name} validated and added to your feed.",
+            "preview_posts": preview_posts,
+            "posts_found": len(preview_posts)
+        }
     except Exception as e:
         logger.error(f"Failed to add user blog: {e}")
         raise HTTPException(500, f"Database error: {str(e)}")

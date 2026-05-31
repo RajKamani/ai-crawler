@@ -14,6 +14,33 @@ def format_post(post: dict) -> dict:
     post["thumbnail_url"] = raw.get("thumbnail_url")
     return post
 
+
+def clean_sub_name(name: str) -> str:
+    """Normalize subreddit names for safe comparison (removes r/ prefixes and lowercases)"""
+    if not name:
+        return ""
+    name = name.lower().strip()
+    if name.startswith("r/"):
+        name = name[2:]
+    if name.startswith("r/"):
+        name = name[2:]
+    return name
+
+
+def clean_blog_url(url: str) -> str:
+    """Normalize blog RSS URLs for safe comparison (removes protocol, www, trailing slashes, and lowercases)"""
+    if not url:
+        return ""
+    url = url.lower().strip().rstrip("/")
+    if url.startswith("https://"):
+        url = url[8:]
+    elif url.startswith("http://"):
+        url = url[7:]
+    if url.startswith("www."):
+        url = url[4:]
+    return url
+
+
 @router.get("")
 async def get_posts(
     page: int = Query(1, ge=1),
@@ -32,18 +59,60 @@ async def get_posts(
     try:
         offset = (page - 1) * limit
         
-        # Fetch active sources that are either global or belong to the user
-        if user:
-            sources_query = supabase.table("sources").select("id")
-            sources_query.params = sources_query.params.add("or", f"(user_id.is.null,user_id.eq.{user.id})")
-            sources_res = sources_query.execute()
-        else:
-            sources_res = supabase.table("sources") \
-                .select("id") \
-                .is_("user_id", "null") \
-                .execute()
-        
-        allowed_source_ids = [s["id"] for s in sources_res.data]
+        # Retrieve user preference for github language if not specified in search query
+        github_lang = None
+        if hasattr(user, "user_metadata") and user.user_metadata:
+            github_lang = user.user_metadata.get("github_language")
+            if github_lang and isinstance(github_lang, str):
+                github_lang = github_lang.lower().strip()
+                if github_lang == "any":
+                    github_lang = None
+
+        if type == "github" and github_lang and not tag:
+            tag = github_lang
+
+        # 1. Fetch user's active subreddit names
+        user_subs_res = supabase.table("user_subreddits") \
+            .select("subreddit_name") \
+            .eq("user_id", user.id) \
+            .eq("is_active", True) \
+            .execute()
+        active_sub_names = {clean_sub_name(row["subreddit_name"]) for row in user_subs_res.data}
+
+        # 2. Fetch user's active blog URLs
+        user_blogs_res = supabase.table("user_blogs") \
+            .select("blog_url") \
+            .eq("user_id", user.id) \
+            .eq("is_active", True) \
+            .execute()
+        active_blog_urls = {clean_blog_url(row["blog_url"]) for row in user_blogs_res.data}
+
+        # 3. Fetch active sources
+        sources_res = supabase.table("sources") \
+            .select("id, name, type, url") \
+            .eq("is_active", True) \
+            .execute()
+
+        # 4. Filter allowed source IDs in Python based on the type filter and user's selections
+        allowed_source_ids = []
+        for s in sources_res.data:
+            s_type = s["type"]
+            s_url = s["url"]
+            
+            if type:
+                if s_type == type:
+                    if type == "github":
+                        allowed_source_ids.append(s["id"])
+                    elif type == "reddit" and clean_sub_name(s_url) in active_sub_names:
+                        allowed_source_ids.append(s["id"])
+                    elif type == "blog" and clean_blog_url(s_url) in active_blog_urls:
+                        allowed_source_ids.append(s["id"])
+            else:
+                if s_type == "reddit" and clean_sub_name(s_url) in active_sub_names:
+                    allowed_source_ids.append(s["id"])
+                elif s_type == "blog" and clean_blog_url(s_url) in active_blog_urls:
+                    allowed_source_ids.append(s["id"])
+
         if not allowed_source_ids:
             return {"posts": [], "page": page, "limit": limit, "count": 0}
 
@@ -90,8 +159,8 @@ async def get_posts(
 
         posts = [format_post(p) for p in res.data]
 
-        # If authenticated, fetch bookmarks and views
-        if user and posts:
+        # Fetch bookmarks and views
+        if posts:
             post_ids = [p["id"] for p in posts]
             
             # Fetch bookmarks
@@ -135,54 +204,43 @@ async def get_personalized_feed(
     """
     Returns a personalized feed for the authenticated user.
     The feed contains posts from:
-    1. Pre-seeded global sources (active blogs, subreddits, and github tags)
-    2. The user's custom subreddits
-    3. The user's custom blog feeds
+    1. Custom and global subreddits selected by the user.
+    2. Custom and global blogs selected by the user.
     """
     try:
         offset = (page - 1) * limit
         
-        # A. Fetch active global source IDs
-        global_sources_res = supabase.table("sources") \
-            .select("id") \
-            .eq("is_active", True) \
-            .is_("user_id", "null") \
-            .execute()
-        source_ids = [s["id"] for s in global_sources_res.data]
-
-        # B. Fetch user's custom subreddit source IDs
+        # 1. Fetch user's active subreddit names
         user_subs_res = supabase.table("user_subreddits") \
             .select("subreddit_name") \
             .eq("user_id", user.id) \
             .eq("is_active", True) \
             .execute()
-        
-        if user_subs_res.data:
-            sub_names = [f"r/{row['subreddit_name'].lower().replace('r/', '').strip()}" for row in user_subs_res.data]
-            sub_sources_res = supabase.table("sources") \
-                .select("id") \
-                .eq("type", "reddit") \
-                .eq("user_id", user.id) \
-                .in_("url", sub_names) \
-                .execute()
-            source_ids.extend([s["id"] for s in sub_sources_res.data])
+        active_sub_names = {clean_sub_name(row["subreddit_name"]) for row in user_subs_res.data}
 
-        # C. Fetch user's custom blog source IDs
+        # 2. Fetch user's active blog URLs
         user_blogs_res = supabase.table("user_blogs") \
             .select("blog_url") \
             .eq("user_id", user.id) \
             .eq("is_active", True) \
             .execute()
-        
-        if user_blogs_res.data:
-            blog_urls = [row["blog_url"] for row in user_blogs_res.data]
-            blog_sources_res = supabase.table("sources") \
-                .select("id") \
-                .eq("type", "blog") \
-                .eq("user_id", user.id) \
-                .in_("url", blog_urls) \
-                .execute()
-            source_ids.extend([s["id"] for s in blog_sources_res.data])
+        active_blog_urls = {clean_blog_url(row["blog_url"]) for row in user_blogs_res.data}
+
+        # 3. Fetch active sources
+        sources_res = supabase.table("sources") \
+            .select("id, name, type, url") \
+            .eq("is_active", True) \
+            .execute()
+
+        # 4. Filter sources in Python to only include selected subreddits and blogs
+        source_ids = []
+        for s in sources_res.data:
+            s_type = s["type"]
+            s_url = s["url"]
+            if s_type == "reddit" and clean_sub_name(s_url) in active_sub_names:
+                source_ids.append(s["id"])
+            elif s_type == "blog" and clean_blog_url(s_url) in active_blog_urls:
+                source_ids.append(s["id"])
 
         if not source_ids:
             return {"posts": [], "page": page, "limit": limit, "count": 0}
@@ -240,14 +298,43 @@ async def get_personalized_feed(
 
 @router.get("/sources")
 async def get_active_feed_sources(user = Depends(get_current_user)):
-    """Get all active feed sources (global seeded sources + user custom sources)"""
+    """Get active feed sources selected/followed by the user"""
     try:
-        query = supabase.table("sources") \
-            .select("id, name, type, user_id") \
-            .eq("is_active", True)
-        query.params = query.params.add("or", f"(user_id.is.null,user_id.eq.{user.id})")
-        res = query.order("name").execute()
-        return {"sources": res.data}
+        # 1. Fetch user's active subreddit names
+        user_subs_res = supabase.table("user_subreddits") \
+            .select("subreddit_name") \
+            .eq("user_id", user.id) \
+            .eq("is_active", True) \
+            .execute()
+        active_sub_names = {clean_sub_name(row["subreddit_name"]) for row in user_subs_res.data}
+
+        # 2. Fetch user's active blog URLs
+        user_blogs_res = supabase.table("user_blogs") \
+            .select("blog_url") \
+            .eq("user_id", user.id) \
+            .eq("is_active", True) \
+            .execute()
+        active_blog_urls = {clean_blog_url(row["blog_url"]) for row in user_blogs_res.data}
+
+        # 3. Fetch active sources
+        sources_res = supabase.table("sources") \
+            .select("id, name, type, url") \
+            .eq("is_active", True) \
+            .execute()
+
+        # 4. Filter sources in Python to only include selected subreddits and blogs
+        filtered_sources = []
+        for s in sources_res.data:
+            s_type = s["type"]
+            s_url = s["url"]
+            if s_type == "reddit" and clean_sub_name(s_url) in active_sub_names:
+                filtered_sources.append(s)
+            elif s_type == "blog" and clean_blog_url(s_url) in active_blog_urls:
+                filtered_sources.append(s)
+
+        # Sort by name
+        filtered_sources.sort(key=lambda x: x["name"].lower())
+        return {"sources": filtered_sources}
     except Exception as e:
         logger.error(f"Error fetching active sources: {e}")
         raise HTTPException(500, f"Failed to fetch active sources: {str(e)}")

@@ -92,7 +92,7 @@ def parse_iso_datetime(s: str) -> datetime:
 # Helper to determine if a crawler task is due based on schedule and last success
 def is_crawler_due(crawler_name: str, user_id: Optional[str], interval: int, latest_success: dict) -> bool:
     from datetime import timedelta
-    key = (crawler_name, user_id)
+    key = (crawler_name, user_id) if user_id else crawler_name
     last_run = latest_success.get(key)
     
     if interval < 0:
@@ -160,7 +160,7 @@ async def crawler_worker(worker_id: int):
         try:
             task = await task_queue.get()
             crawler_name = task["crawler_name"]
-            user_id = task["user_id"]
+            user_id = task.get("user_id")
             desc = task["description"]
             
             logger.info(f"Worker {worker_id} picked up task: {desc} (user: {user_id})")
@@ -196,7 +196,7 @@ async def crawler_worker(worker_id: int):
             try:
                 await loop.run_in_executor(None, func, *args)
             except Exception as e:
-                logger.error(f"Worker {worker_id} failed running {crawler_name}: {e}")
+                logger.error(f"Worker {worker_id} failed running {crawler_name} for user {user_id}: {e}")
             finally:
                 task_queue.task_done()
                 currently_running_tasks.discard((crawler_name, user_id))
@@ -235,21 +235,13 @@ def job_dispatch_due_crawls():
                 pass
             else:
                 global_settings[cname]["is_active"] = False
-                
         for key in list(user_settings.keys()):
             if check_and_deactivate_oneshot(user_settings[key]):
                 pass
             else:
                 user_settings[key]["is_active"] = False
 
-        # 2. Fetch active users list with subreddits/blogs
-        sub_users_res = supabase.table("user_subreddits").select("user_id").eq("is_active", True).execute()
-        active_sub_users = set(row["user_id"] for row in sub_users_res.data if row.get("user_id"))
-
-        blog_users_res = supabase.table("user_blogs").select("user_id").eq("is_active", True).execute()
-        active_blog_users = set(row["user_id"] for row in blog_users_res.data if row.get("user_id"))
-
-        # 3. Fetch recent successful crawl logs (last 10 days)
+        # 2. Fetch recent successful crawl logs (last 10 days)
         from datetime import timedelta
         threshold = (datetime.utcnow() - timedelta(days=10)).isoformat() + "Z"
         logs_res = supabase.table("crawl_logs") \
@@ -263,7 +255,7 @@ def job_dispatch_due_crawls():
         for log in logs_res.data:
             cname = log["crawler_name"]
             uid = log.get("user_id")
-            key = (cname, uid)
+            key = (cname, uid) if uid else cname
             if key not in latest_success and log.get("completed_at"):
                 try:
                     completed_str = log["completed_at"]
@@ -274,12 +266,19 @@ def job_dispatch_due_crawls():
                 except Exception as parse_err:
                     logger.error(f"Failed to parse completed_at: {parse_err}")
 
+        # Fetch active user lists
+        sub_users_res = supabase.table("user_subreddits").select("user_id").eq("is_active", True).execute()
+        active_sub_users = set(row["user_id"] for row in sub_users_res.data if row.get("user_id"))
+
+        blog_users_res = supabase.table("user_blogs").select("user_id").eq("is_active", True).execute()
+        active_blog_users = set(row["user_id"] for row in blog_users_res.data if row.get("user_id"))
+
         # Helper to check and enqueue due tasks
         def check_and_enqueue(crawler_name: str, user_id: Optional[str], interval: int, desc: str):
             if is_crawler_due(crawler_name, user_id, interval, latest_success):
                 enqueue_task(crawler_name, user_id, desc)
 
-        # 4. Process Global Crawlers
+        # 3. Process Global Crawlers
         global_crawlers = ["blog_global", "reddit_global", "github_trending"]
         for name in global_crawlers:
             if name not in global_settings:
@@ -289,21 +288,7 @@ def job_dispatch_due_crawls():
                 desc = JOB_MAPPING[name][1]
                 check_and_enqueue(name, None, g_row["interval_minutes"], desc)
 
-        # 5. Process User Blogs
-        blog_global_setting = global_settings.get("blog_user", {"interval_minutes": 90, "is_active": True})
-        for uid in active_blog_users:
-            u_setting = user_settings.get(("blog_user", uid))
-            if u_setting:
-                interval = u_setting["interval_minutes"]
-                is_active = u_setting["is_active"]
-            else:
-                interval = blog_global_setting["interval_minutes"]
-                is_active = blog_global_setting["is_active"]
-
-            if is_active:
-                check_and_enqueue("blog_user", uid, interval, f"Crawl RSS blogs for user {uid}")
-
-        # 6. Process User Reddit
+        # 4. Process User custom subreddits crawlers
         reddit_global_setting = global_settings.get("reddit_user", {"interval_minutes": 45, "is_active": True})
         for uid in active_sub_users:
             u_setting = user_settings.get(("reddit_user", uid))
@@ -313,9 +298,21 @@ def job_dispatch_due_crawls():
             else:
                 interval = reddit_global_setting["interval_minutes"]
                 is_active = reddit_global_setting["is_active"]
-
             if is_active:
                 check_and_enqueue("reddit_user", uid, interval, f"Crawl subreddits for user {uid}")
+
+        # 5. Process User custom blogs crawlers
+        blog_global_setting = global_settings.get("blog_user", {"interval_minutes": 90, "is_active": True})
+        for uid in active_blog_users:
+            u_setting = user_settings.get(("blog_user", uid))
+            if u_setting:
+                interval = u_setting["interval_minutes"]
+                is_active = u_setting["is_active"]
+            else:
+                interval = blog_global_setting["interval_minutes"]
+                is_active = blog_global_setting["is_active"]
+            if is_active:
+                check_and_enqueue("blog_user", uid, interval, f"Crawl RSS blogs for user {uid}")
 
     except Exception as e:
         logger.error(f"Error in job_dispatch_due_crawls: {e}")
@@ -351,11 +348,13 @@ def shutdown_worker_pool():
 def start_crawl_log(crawler_name: str, user_id: Optional[str] = None) -> str:
     """Create a new crawl log entry with status 'running' and return its ID"""
     try:
-        res = supabase.table("crawl_logs").insert({
+        insert_data = {
             "crawler_name": crawler_name,
-            "status": "running",
-            "user_id": user_id
-        }).execute()
+            "status": "running"
+        }
+        if user_id:
+            insert_data["user_id"] = user_id
+        res = supabase.table("crawl_logs").insert(insert_data).execute()
         if res.data:
             return res.data[0]["id"]
     except Exception as e:
@@ -406,7 +405,7 @@ def job_crawl_blog_global(log_id: str = None):
         finish_crawl_log(log_id, "failed", total_found, total_saved, str(e))
 
 def job_crawl_blog_user(user_id: str, log_id: str = None):
-    logger.info(f"Starting user blog crawling job for user {user_id}...")
+    logger.info(f"Starting blog crawling job for user {user_id}...")
     if not log_id:
         log_id = start_crawl_log("blog_user", user_id=user_id)
     try:
@@ -440,7 +439,7 @@ def job_crawl_reddit_global(log_id: str = None):
         finish_crawl_log(log_id, "failed", total_found, total_saved, str(e))
 
 def job_crawl_reddit_user(user_id: str, log_id: str = None):
-    logger.info(f"Starting user reddit crawling job for user {user_id}...")
+    logger.info(f"Starting reddit crawling job for user {user_id}...")
     if not log_id:
         log_id = start_crawl_log("reddit_user", user_id=user_id)
     try:
@@ -536,19 +535,16 @@ def sync_scheduler_intervals():
             else:
                 user_settings[(cname, uid)] = row
 
-
         # Update and check global settings
         for cname in global_settings:
             check_and_deactivate_oneshot(global_settings[cname])
         for key in user_settings:
             check_and_deactivate_oneshot(user_settings[key])
 
-        # 2. Fetch active user list
-        # Distinct user_ids with active subreddits
+        # Fetch active user lists
         sub_users_res = supabase.table("user_subreddits").select("user_id").eq("is_active", True).execute()
         active_sub_users = set(row["user_id"] for row in sub_users_res.data if row.get("user_id"))
 
-        # Distinct user_ids with active blogs
         blog_users_res = supabase.table("user_blogs").select("user_id").eq("is_active", True).execute()
         active_blog_users = set(row["user_id"] for row in blog_users_res.data if row.get("user_id"))
 

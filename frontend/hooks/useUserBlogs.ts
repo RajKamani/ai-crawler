@@ -11,6 +11,13 @@ export interface BlogFeed {
   last_crawled_at?: string;
 }
 
+export interface PreviewPost {
+  title: string;
+  url: string;
+  published?: string;
+  score?: number;
+}
+
 export const useUserBlogs = () => {
   const [blogs, setBlogs] = useState<BlogFeed[]>([]);
   const [suggestions, setSuggestions] = useState<Array<{ name: string; url: string }>>([]);
@@ -47,7 +54,7 @@ export const useUserBlogs = () => {
     }
   };
 
-  const addBlog = async (name: string, url: string) => {
+  const addBlog = async (name: string, url: string): Promise<{ preview_posts: PreviewPost[]; posts_found: number; message: string }> => {
     const response = await fetch(`${API_BASE_URL}/me/blogs`, {
       method: 'POST',
       headers: {
@@ -63,6 +70,11 @@ export const useUserBlogs = () => {
     }
 
     setBlogs((prev) => [data.blog, ...prev]);
+    return {
+      message: data.message || `${name} validated and added.`,
+      preview_posts: data.preview_posts || [],
+      posts_found: data.posts_found ?? 0,
+    };
   };
 
   const removeBlog = async (id: string) => {

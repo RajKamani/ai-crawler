@@ -21,7 +21,7 @@ async def get_crawler_settings(user = Depends(get_current_user)):
         for row in res.data:
             cname = row["crawler_name"]
             # If not in merged yet, or if this row has user_id, set it
-            if cname not in merged or row["user_id"] is not None:
+            if cname not in merged or row.get("user_id") is not None:
                 merged[cname] = row
                 
         return {"settings": list(merged.values()), "count": len(merged)}

@@ -8,7 +8,7 @@ const PRODUCTION_API_URL = 'https://ai-content-crawler-backend.onrender.com/api/
 // If testing locally on a physical device, set HOST to your machine's LAN IP (e.g., '192.168.1.64').
 // Run backend locally with: uvicorn app.main:app --reload --host 0.0.0.0
 const HOST = Platform.select({
-  android: '192.168.1.64', // Change to '10.0.2.2' if using emulator without adb reverse
+  android: '192.168.1.77', // Change to '10.0.2.2' if using emulator without adb reverse
   ios: 'localhost',
   default: 'localhost',
 });

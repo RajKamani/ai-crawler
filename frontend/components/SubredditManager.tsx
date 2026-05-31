@@ -8,9 +8,11 @@ import {
   ActivityIndicator,
   FlatList,
   Switch,
+  Linking,
 } from 'react-native';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
+import { PreviewPost } from '@/hooks/useUserBlogs';
 
 interface SubredditItem {
   id: string;
@@ -23,7 +25,7 @@ interface SubredditManagerProps {
   subreddits: SubredditItem[];
   suggestions: Array<{ name: string; description: string }>;
   isLoading: boolean;
-  onAddSubreddit: (name: string) => Promise<void>;
+  onAddSubreddit: (name: string) => Promise<{ preview_posts: PreviewPost[]; posts_found: number; message: string }>;
   onRemoveSubreddit: (id: string) => Promise<void>;
   onToggleSubreddit: (id: string, isActive: boolean) => Promise<void>;
 }
@@ -41,15 +43,18 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
   const [newSub, setNewSub] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [updatingItems, setUpdatingItems] = useState<Record<string, 'toggle' | 'delete'>>({});
+  const [successResult, setSuccessResult] = useState<{ message: string; preview_posts: PreviewPost[]; posts_found: number } | null>(null);
+  const [updatingItems, setUpdatingItems] = useState<Record<string, 'toggle' | 'delete'>>({}); 
 
   const handleAdd = async (nameToAdd: string) => {
     if (!nameToAdd.trim()) return;
     setIsSubmitting(true);
     setErrorMsg('');
+    setSuccessResult(null);
     try {
-      await onAddSubreddit(nameToAdd);
+      const result = await onAddSubreddit(nameToAdd);
       setNewSub('');
+      setSuccessResult(result);
     } catch (err: any) {
       setErrorMsg(err.message || 'Subreddit could not be verified.');
     } finally {
@@ -134,6 +139,44 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
       </View>
 
       {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
+
+      {/* Validation Success Banner */}
+      {successResult && (
+        <View style={[styles.successBanner, { borderColor: colors.border, backgroundColor: colors.surfaceContainer }]}>
+          <View style={styles.successHeader}>
+            <Ionicons name="checkmark-circle" size={18} color="#22c55e" />
+            <Text style={[styles.successTitle, { color: '#22c55e' }]}>SUBREDDIT VALIDATED ✓</Text>
+          </View>
+          <Text style={[styles.successMsg, { color: colors.text }]}>{successResult.message}</Text>
+          {successResult.preview_posts.length > 0 && (
+            <>
+              <Text style={[styles.previewLabel, { color: colors.tabIconDefault }]}>
+                TOP POSTS — {successResult.posts_found} POST{successResult.posts_found !== 1 ? 'S' : ''} PREVIEWED
+              </Text>
+              {successResult.preview_posts.map((post, idx) => (
+                <Pressable
+                  key={idx}
+                  style={[styles.previewItem, { borderColor: colors.border }]}
+                  onPress={() => post.url ? Linking.openURL(post.url) : null}
+                >
+                  <Text style={[styles.previewItemText, { color: colors.text }]} numberOfLines={2}>
+                    {post.title}
+                  </Text>
+                  {post.score !== undefined && (
+                    <Text style={[styles.previewItemMeta, { color: colors.tabIconDefault }]}>↑ {post.score.toLocaleString()} upvotes</Text>
+                  )}
+                </Pressable>
+              ))}
+            </>
+          )}
+          <Text style={[styles.successFooter, { color: colors.tabIconDefault }]}>
+            Background crawler will populate your feed shortly.
+          </Text>
+          <Pressable onPress={() => setSuccessResult(null)} style={styles.dismissBtn}>
+            <Text style={[styles.dismissText, { color: colors.primary }]}>DISMISS</Text>
+          </Pressable>
+        </View>
+      )}
 
       {/* Popular Suggestions */}
       <Text style={[styles.subTitle, { color: colors.primary }]}>QUICK ADD SUGGESTIONS</Text>
@@ -368,5 +411,65 @@ const styles = StyleSheet.create({
     borderColor: '#bc000a',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  successBanner: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderRadius: 0,
+    padding: 14,
+    gap: 8,
+  },
+  successHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  successTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
+  },
+  successMsg: {
+    fontSize: 12,
+    fontFamily: 'SpaceMono',
+    lineHeight: 16,
+  },
+  previewLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
+    marginTop: 4,
+  },
+  previewItem: {
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 2,
+  },
+  previewItemText: {
+    fontSize: 11,
+    fontFamily: 'SpaceMono',
+    lineHeight: 15,
+  },
+  previewItemMeta: {
+    fontSize: 10,
+    fontFamily: 'SpaceMono',
+    marginTop: 2,
+  },
+  successFooter: {
+    fontSize: 10,
+    fontFamily: 'SpaceMono',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  dismissBtn: {
+    alignSelf: 'flex-end',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  dismissText: {
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
 });

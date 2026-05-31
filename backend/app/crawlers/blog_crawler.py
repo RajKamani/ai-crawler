@@ -38,7 +38,7 @@ class BlogCrawler(BaseCrawler):
             if not result.data:
                 logger.info(f"No active user custom blogs found for user {user_id}.")
                 return 0, 0
-
+ 
             # Deduplicate blog URLs (likely already unique per user)
             unique_blogs = {}
             for row in result.data:
@@ -46,7 +46,7 @@ class BlogCrawler(BaseCrawler):
             
             for blog_url, blog_name in unique_blogs.items():
                 try:
-                    source_id = await self._get_or_create_source(blog_name, blog_url, user_id=user_id)
+                    source_id = await self._get_or_create_source(blog_name, blog_url)
                     found, saved = await self._crawl_feed(
                         feed_url=blog_url,
                         source_id=source_id,
@@ -56,7 +56,7 @@ class BlogCrawler(BaseCrawler):
                     total_saved += saved
                 except Exception as e:
                     logger.error(f"Error crawling user blog {blog_name} ({blog_url}) for user {user_id}: {e}")
-
+ 
             # Update last_crawled_at for this user's active user blogs
             now_iso = datetime.utcnow().isoformat() + "Z"
             supabase.table("user_blogs") \
@@ -64,7 +64,7 @@ class BlogCrawler(BaseCrawler):
                 .eq("user_id", user_id) \
                 .eq("is_active", True) \
                 .execute()
-                
+                 
         except Exception as e:
             logger.error(f"Error in crawl_user_blogs: {e}")
         return total_found, total_saved
@@ -155,20 +155,14 @@ class BlogCrawler(BaseCrawler):
                 pass
         return None
 
-    async def _get_or_create_source(self, blog_name: str, blog_url: str, user_id: Optional[str] = None) -> str:
-        """Find existing source or create new one for user blog"""
-        query = supabase.table("sources") \
+    async def _get_or_create_source(self, blog_name: str, blog_url: str) -> str:
+        """Find existing source or create new one for user blog (globally)"""
+        res = supabase.table("sources") \
             .select("id") \
             .eq("url", blog_url) \
-            .eq("type", "blog")
+            .eq("type", "blog") \
+            .execute()
             
-        if user_id:
-            query = query.eq("user_id", user_id)
-        else:
-            query = query.is_("user_id", "null")
-            
-        res = query.execute()
-        
         if res.data:
             return res.data[0]["id"]
         
@@ -180,8 +174,6 @@ class BlogCrawler(BaseCrawler):
             "is_active": True,
             "crawl_frequency_minutes": 90
         }
-        if user_id:
-            insert_data["user_id"] = user_id
             
         new_source = supabase.table("sources").insert(insert_data).execute()
         return new_source.data[0]["id"]

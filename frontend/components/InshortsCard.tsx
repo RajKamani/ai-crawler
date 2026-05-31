@@ -168,6 +168,15 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
 
   const mediaUrl = getMediaUrl(post);
 
+  // Calculate read time estimate for blogs
+  const getReadTime = () => {
+    if (sourceType !== 'blog' || !post.content) return null;
+    const words = post.content.trim().split(/\s+/).length;
+    const minutes = Math.max(1, Math.round(words / 200));
+    return `${minutes} MIN READ`;
+  };
+  const readTime = getReadTime();
+
   return (
     <View style={[styles.card, { height: containerHeight, backgroundColor: colors.background }]}>
       {/* Header Visual Section */}
@@ -193,7 +202,9 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
             <FontAwesome5 name={theme.icon} size={11} color={theme.accentColor} />
             <Text style={[styles.sourceText, { color: theme.accentColor }]}>{sourceName}</Text>
           </View>
-          <Text style={[styles.dateText, { color: colors.text }]}>{formatDate(post.published_at)}</Text>
+          <Text style={[styles.dateText, { color: colors.text }]}>
+            {formatDate(post.published_at)}{readTime ? ` • ${readTime}` : ''}
+          </Text>
           {isViewed && (
             <View style={styles.viewedBadge}>
               <Text style={styles.viewedText}>READ</Text>

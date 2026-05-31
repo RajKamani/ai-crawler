@@ -94,6 +94,13 @@ export default function SettingsHubScreen() {
             subtitle="Add and validate custom blog feeds"
             href="/settings/blogs"
             isFontAwesome={true}
+          />
+          <SettingsMenuItem
+            icon="logo-github"
+            iconColor="#00647f"
+            title="Manage GitHub Trending"
+            subtitle="Choose preferred languages for GitHub feeds"
+            href="/settings/github"
             isLast={true}
           />
         </View>

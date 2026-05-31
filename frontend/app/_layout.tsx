@@ -2,7 +2,7 @@ import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ActivityIndicator, View } from 'react-native';
@@ -11,6 +11,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { ThemeProvider, useThemeContext } from '../context/ThemeContext';
 import { AuthScreen } from '../components/AuthScreen';
+import { OnboardingScreen } from '../components/OnboardingScreen';
 import { supabase } from '../utils/supabase';
 import { API_BASE_URL } from '../constants/Config';
 import { useTheme } from '../hooks/useTheme';
@@ -123,8 +124,17 @@ function RootLayoutNav() {
   const { theme } = useThemeContext();
   const colors = useTheme();
   const { session, isLoading } = useAuth();
+  const [isOnboarded, setIsOnboarded] = useState<boolean | null>(null);
 
-  if (isLoading) {
+  useEffect(() => {
+    if (session?.user) {
+      setIsOnboarded(!!session.user.user_metadata?.onboarding_completed);
+    } else {
+      setIsOnboarded(null);
+    }
+  }, [session]);
+
+  if (isLoading || (session && isOnboarded === null)) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -134,6 +144,10 @@ function RootLayoutNav() {
 
   if (!session) {
     return <AuthScreen />;
+  }
+
+  if (isOnboarded === false) {
+    return <OnboardingScreen onComplete={() => setIsOnboarded(true)} />;
   }
 
   return (

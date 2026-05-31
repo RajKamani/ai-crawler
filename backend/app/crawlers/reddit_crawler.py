@@ -87,13 +87,13 @@ class RedditCrawler(BaseCrawler):
             if not result.data:
                 logger.info(f"No active user custom subreddits found for user {user_id}.")
                 return 0, 0
-
+ 
             # Deduplicate subreddits
             unique_subs = set(row["subreddit_name"].lower().replace("r/", "").strip() for row in result.data)
             
             for sub_name in unique_subs:
                 try:
-                    source_id = await self._get_or_create_source(f"r/{sub_name}", f"r/{sub_name}", user_id=user_id)
+                    source_id = await self._get_or_create_source(f"r/{sub_name}", f"r/{sub_name}")
                     posts = await self._fetch_reddit_posts(sub_name)
                     
                     for post in posts:
@@ -115,7 +115,7 @@ class RedditCrawler(BaseCrawler):
                                 total_saved += 1
                 except Exception as e:
                     logger.error(f"Error crawling user subreddit r/{sub_name} for user {user_id}: {e}")
-
+ 
             # Update last_crawled_at for this user's subreddits
             now_iso = datetime.utcnow().isoformat() + "Z"
             supabase.table("user_subreddits") \
@@ -123,7 +123,7 @@ class RedditCrawler(BaseCrawler):
                 .eq("user_id", user_id) \
                 .eq("is_active", True) \
                 .execute()
-
+ 
         except Exception as e:
             logger.error(f"Error in crawl_user_subreddits: {e}")
         return total_found, total_saved
@@ -295,19 +295,13 @@ class RedditCrawler(BaseCrawler):
                 
         return comments_data
 
-    async def _get_or_create_source(self, name: str, sub_path: str, user_id: Optional[str] = None) -> str:
-        """Find existing source or create new one for user subreddit"""
-        query = supabase.table("sources") \
+    async def _get_or_create_source(self, name: str, sub_path: str) -> str:
+        """Find existing source or create new one for user subreddit (globally)"""
+        res = supabase.table("sources") \
             .select("id") \
             .eq("url", sub_path) \
-            .eq("type", "reddit")
-        
-        if user_id:
-            query = query.eq("user_id", user_id)
-        else:
-            query = query.is_("user_id", "null")
-            
-        res = query.execute()
+            .eq("type", "reddit") \
+            .execute()
         
         if res.data:
             return res.data[0]["id"]
@@ -320,8 +314,6 @@ class RedditCrawler(BaseCrawler):
             "is_active": True,
             "crawl_frequency_minutes": 45
         }
-        if user_id:
-            insert_data["user_id"] = user_id
             
         new_source = supabase.table("sources").insert(insert_data).execute()
         return new_source.data[0]["id"]
