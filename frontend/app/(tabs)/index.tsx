@@ -31,7 +31,6 @@ export default function HomeFeedScreen() {
   const [sources, setSources] = useState<Array<{ id: string; name: string; type: string }>>([]);
   const [sourcesLoaded, setSourcesLoaded] = useState(false);
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
-  const [selectedType, setSelectedType] = useState<string | null>(null);
   
   // Height container measurement
   const [containerHeight, setContainerHeight] = useState(0);
@@ -82,11 +81,11 @@ export default function HomeFeedScreen() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Reset feed on search query, selected source change, or selected type change
+  // Reset feed on search query or selected source change
   useEffect(() => {
     setHasMore(true);
     fetchFeed(1, true);
-  }, [debouncedQuery, selectedSourceId, selectedType]);
+  }, [debouncedQuery, selectedSourceId]);
 
   const fetchFeed = async (pageNum: number, shouldReset = false) => {
     if (isLoading) return;
@@ -96,9 +95,6 @@ export default function HomeFeedScreen() {
     }
     try {
       let url = `${API_BASE_URL}/posts?page=${pageNum}&limit=10`;
-      if (selectedType) {
-        url += `&type=${selectedType}`;
-      }
       if (selectedSourceId) {
         url += `&source_id=${selectedSourceId}`;
       }
@@ -264,101 +260,58 @@ export default function HomeFeedScreen() {
         ) : null}
       </View>
 
-      {/* Scrollable Type Selection Chips */}
-      <View style={{ height: 42, marginBottom: 4 }}>
+      {/* Scrollable Provider Selection Chips */}
+      {sources.length > 0 && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.typeChipsScrollView}
-          contentContainerStyle={styles.typeChipsContent}
+          style={styles.chipsScrollView}
+          contentContainerStyle={styles.chipsContent}
         >
-          {['ALL', 'REDDIT', 'BLOGS', 'GITHUB'].map((type) => {
-            const typeVal = type === 'ALL' ? null : type.toLowerCase().replace('blogs', 'blog');
-            const isTypeActive = selectedType === typeVal;
+          <Pressable
+            style={[
+              styles.chipButton,
+              { borderColor: colors.border, backgroundColor: colors.background },
+              selectedSourceId === null && { backgroundColor: colors.primary, borderColor: colors.primary },
+            ]}
+            onPress={() => setSelectedSourceId(null)}
+          >
+            <Text
+              style={[
+                styles.chipText,
+                { color: colors.text },
+                selectedSourceId === null && { color: '#ffffff' },
+              ]}
+            >
+              ALL FEED
+            </Text>
+          </Pressable>
+          {sources.map((src) => {
+            const isActive = selectedSourceId === src.id;
             return (
               <Pressable
-                key={type}
+                key={src.id}
                 style={[
-                  styles.typeChipButton,
+                  styles.chipButton,
                   { borderColor: colors.border, backgroundColor: colors.background },
-                  isTypeActive && { backgroundColor: colors.primary, borderColor: colors.primary },
+                  isActive && { backgroundColor: colors.primary, borderColor: colors.primary },
                 ]}
-                onPress={() => {
-                  setSelectedSourceId(null);
-                  setSelectedType(typeVal);
-                }}
+                onPress={() => setSelectedSourceId(src.id)}
               >
                 <Text
                   style={[
-                    styles.typeChipText,
+                    styles.chipText,
                     { color: colors.text },
-                    isTypeActive && { color: '#ffffff' },
+                    isActive && { color: '#ffffff' },
                   ]}
                 >
-                  {type}
+                  {src.name.toUpperCase()}
                 </Text>
               </Pressable>
             );
           })}
         </ScrollView>
-      </View>
-
-      {/* Scrollable Provider Selection Chips */}
-      {(() => {
-        const filteredSources = sources.filter(src => !selectedType || src.type === selectedType);
-        if (filteredSources.length === 0) return null;
-        return (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.chipsScrollView}
-            contentContainerStyle={styles.chipsContent}
-          >
-            <Pressable
-              style={[
-                styles.chipButton,
-                { borderColor: colors.border, backgroundColor: colors.background },
-                selectedSourceId === null && { backgroundColor: colors.primary, borderColor: colors.primary },
-              ]}
-              onPress={() => setSelectedSourceId(null)}
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  { color: colors.text },
-                  selectedSourceId === null && { color: '#ffffff' },
-                ]}
-              >
-                ALL {selectedType ? selectedType.toUpperCase() + 'S' : 'FEED'}
-              </Text>
-            </Pressable>
-            {filteredSources.map((src) => {
-              const isActive = selectedSourceId === src.id;
-              return (
-                <Pressable
-                  key={src.id}
-                  style={[
-                    styles.chipButton,
-                    { borderColor: colors.border, backgroundColor: colors.background },
-                    isActive && { backgroundColor: colors.primary, borderColor: colors.primary },
-                  ]}
-                  onPress={() => setSelectedSourceId(src.id)}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      { color: colors.text },
-                      isActive && { color: '#ffffff' },
-                    ]}
-                  >
-                    {src.name.toUpperCase()}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        );
-      })()}
+      )}
 
       {/* Main Snapping Area */}
       <View
@@ -391,7 +344,7 @@ export default function HomeFeedScreen() {
                 <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
                   <ActivityIndicator size="large" color={colors.primary} />
                 </View>
-              ) : sourcesLoaded && sources.length === 0 && selectedType !== 'github' ? (
+              ) : sourcesLoaded && sources.length === 0 ? (
                 // No sources selected at all — guide user to add some
                 <View style={[styles.noSourcesContainer, { backgroundColor: colors.background }]}>
                   <View style={[styles.noSourcesIconBox, { borderColor: colors.border, backgroundColor: colors.surfaceContainer }]}>
@@ -611,29 +564,7 @@ const styles = StyleSheet.create({
     paddingRight: 20,
     alignItems: 'center',
   },
-  typeChipsScrollView: {
-    maxHeight: 40,
-    marginHorizontal: 20,
-  },
-  typeChipsContent: {
-    gap: 8,
-    paddingRight: 20,
-    alignItems: 'center',
-  },
-  typeChipButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: '#1c1b1b',
-    backgroundColor: '#fcf9f8',
-    borderRadius: 0,
-  },
-  typeChipText: {
-    color: '#1c1b1b',
-    fontSize: 11,
-    fontWeight: '700',
-    fontFamily: 'SpaceMono',
-  },
+
   chipButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
