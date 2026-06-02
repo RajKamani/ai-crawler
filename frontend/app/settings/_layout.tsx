@@ -1,13 +1,16 @@
 import { Stack } from 'expo-router';
+import { useTheme } from '@/hooks/useTheme';
 
 export default function SettingsLayout() {
+  const colors = useTheme();
+
   return (
     <Stack
       screenOptions={{
         headerStyle: {
-          backgroundColor: '#fcf9f8',
+          backgroundColor: colors.background,
         },
-        headerTintColor: '#1c1b1b',
+        headerTintColor: colors.text,
         headerTitleStyle: {
           fontFamily: 'SpaceMono',
           fontWeight: '700',
@@ -15,7 +18,7 @@ export default function SettingsLayout() {
         },
         headerShadowVisible: false,
         contentStyle: {
-          backgroundColor: '#fcf9f8',
+          backgroundColor: colors.background,
         },
       }}
     >

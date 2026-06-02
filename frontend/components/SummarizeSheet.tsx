@@ -84,7 +84,7 @@ export const SummarizeSheet: React.FC<SummarizeSheetProps> = ({
           {/* Bottom CTA */}
           <View style={styles.footer}>
             <Pressable style={[styles.actionBtn, { backgroundColor: colors.primary, borderColor: colors.border }]} onPress={onClose}>
-              <Text style={styles.actionBtnText}>GOT IT, THANKS!</Text>
+              <Text style={[styles.actionBtnText, { color: colors.isDark ? '#1c1b1b' : '#ffffff' }]}>GOT IT, THANKS!</Text>
             </Pressable>
           </View>
         </View>

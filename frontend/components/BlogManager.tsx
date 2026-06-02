@@ -155,11 +155,11 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
           disabled={isSubmitting}
         >
           {isSubmitting ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <ActivityIndicator size="small" color={colors.isDark ? '#1c1b1b' : '#FFFFFF'} />
           ) : (
             <>
-              <Ionicons name="add" size={20} color="#FFFFFF" />
-              <Text style={styles.submitText}>ADD BLOG FEED</Text>
+              <Ionicons name="add" size={20} color={colors.isDark ? '#1c1b1b' : '#FFFFFF'} />
+              <Text style={[styles.submitText, { color: colors.isDark ? '#1c1b1b' : '#FFFFFF' }]}>ADD BLOG FEED</Text>
             </>
           )}
         </Pressable>
@@ -223,7 +223,7 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
               style={[
                 styles.suggestionChip,
                 { backgroundColor: colors.surfaceContainer, borderColor: colors.border },
-                isAdded ? styles.suggestionChipAdded : null,
+                isAdded ? { backgroundColor: colors.surfaceDim, opacity: 0.5 } : null,
               ]}
               onPress={() => !isAdded && handleAdd(blog.name, blog.url)}
               disabled={isAdded || isSubmitting}
@@ -283,9 +283,9 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
                     disabled={isUpdating}
                   >
                     {updatingType === 'delete' ? (
-                      <ActivityIndicator size="small" color="#bc000a" />
+                      <ActivityIndicator size="small" color={colors.primary} />
                     ) : (
-                      <Ionicons name="trash-outline" size={18} color="#bc000a" />
+                      <Ionicons name="trash-outline" size={18} color={colors.primary} />
                     )}
                   </Pressable>
                 </View>

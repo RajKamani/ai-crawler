@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useCrawlerSettings, CrawlerSchedule } from '@/hooks/useCrawlerSettings';
+import { useTheme } from '@/hooks/useTheme';
 
 const showAlert = (title: string, message: string) => {
   if (Platform.OS === 'web') {
@@ -74,6 +75,8 @@ const encodeDateTime = (date: Date) => {
 // -------------------------------------------------------------
 
 export default function CrawlerSettingsScreen() {
+  const colors = useTheme();
+  const isDark = colors.isDark;
   const { schedules, isLoading, updateSchedule } = useCrawlerSettings();
   const [updatingName, setUpdatingName] = useState<string | null>(null);
 
@@ -289,16 +292,29 @@ export default function CrawlerSettingsScreen() {
     }
   };
 
+  const dynamicWebTimeStyle = {
+    ...webStyles.inputTime,
+    border: `1px solid ${colors.border}`,
+    backgroundColor: colors.surfaceContainer,
+    color: colors.text,
+  };
+
+  const dynamicWebDateTimeStyle = {
+    ...webStyles.inputDateTime,
+    border: `1px solid ${colors.border}`,
+    backgroundColor: colors.surfaceContainer,
+    color: colors.text,
+  };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {isLoading && schedules.length === 0 ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#bc000a" />
+        <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <Text style={styles.sectionDesc}>
+          <Text style={[styles.sectionDesc, { color: colors.tabIconDefault }]}>
             Manage how frequently each background crawler scraper job executes on the server engine.
           </Text>
 
@@ -307,57 +323,81 @@ export default function CrawlerSettingsScreen() {
             const mode = getScheduleMode(schedule.interval_minutes);
 
             return (
-              <View key={schedule.id} style={[styles.scheduleCard, isUpdating && { opacity: 0.6 }]}>
+              <View key={schedule.id} style={[styles.scheduleCard, { backgroundColor: colors.background, borderColor: colors.border }, isUpdating && { opacity: 0.6 }]}>
 
                 {/* Header Row: Title and Switch */}
                 <View style={styles.cardHeader}>
                   <View style={styles.titleArea}>
-                    <Text style={styles.cardTitle}>{getDisplayName(schedule.crawler_name).toUpperCase()}</Text>
-                    <Text style={styles.cardDesc}>{getDescription(schedule.crawler_name)}</Text>
+                    <Text style={[styles.cardTitle, { color: colors.text }]}>{getDisplayName(schedule.crawler_name).toUpperCase()}</Text>
+                    <Text style={[styles.cardDesc, { color: colors.tabIconDefault }]}>{getDescription(schedule.crawler_name)}</Text>
                   </View>
                   <View style={styles.actionArea}>
                     {isUpdating ? (
-                      <ActivityIndicator size="small" color="#bc000a" style={styles.spinner} />
+                      <ActivityIndicator size="small" color={colors.primary} style={styles.spinner} />
                     ) : (
                       <Switch
                         value={schedule.is_active}
                         onValueChange={(val) => handleToggle(schedule, val)}
-                        trackColor={{ false: '#dcd9d9', true: 'rgba(188, 0, 10, 0.3)' }}
-                        thumbColor={schedule.is_active ? '#bc000a' : '#926f6a'}
+                        trackColor={{ false: isDark ? '#2c2b2b' : '#dcd9d9', true: isDark ? 'rgba(255, 79, 79, 0.3)' : 'rgba(188, 0, 10, 0.3)' }}
+                        thumbColor={schedule.is_active ? colors.primary : colors.tabIconDefault}
                       />
                     )}
                   </View>
                 </View>
 
                 {schedule.is_active && (
-                  <View style={styles.settingsPanel}>
+                  <View style={[styles.settingsPanel, { borderTopColor: colors.border }]}>
                     {/* Brutalist Mode Selector Segment */}
-                    <View style={styles.modeSelector}>
+                    <View style={[styles.modeSelector, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
                       <Pressable
-                        style={[styles.modeBtn, mode === 'interval' && styles.modeBtnActive]}
+                        style={[
+                          styles.modeBtn, 
+                          { borderRightColor: colors.border },
+                          mode === 'interval' && { backgroundColor: colors.primary }
+                        ]}
                         onPress={() => handleModeChange(schedule.crawler_name, 'interval')}
                         disabled={isUpdating}
                       >
-                        <Text style={[styles.modeBtnText, mode === 'interval' && styles.modeBtnActiveText]}>
-                          INTERVAL
+                        <Text style={[
+                          styles.modeBtnText, 
+                          { color: colors.text },
+                          mode === 'interval' && { color: isDark ? '#1c1b1b' : '#ffffff' }
+                        ]}>
+                           INTERVAL
                         </Text>
                       </Pressable>
                       <Pressable
-                        style={[styles.modeBtn, mode === 'daily' && styles.modeBtnActive]}
+                        style={[
+                          styles.modeBtn, 
+                          { borderRightColor: colors.border },
+                          mode === 'daily' && { backgroundColor: colors.primary }
+                        ]}
                         onPress={() => handleModeChange(schedule.crawler_name, 'daily')}
                         disabled={isUpdating}
                       >
-                        <Text style={[styles.modeBtnText, mode === 'daily' && styles.modeBtnActiveText]}>
-                          DAILY
+                        <Text style={[
+                          styles.modeBtnText, 
+                          { color: colors.text },
+                          mode === 'daily' && { color: isDark ? '#1c1b1b' : '#ffffff' }
+                        ]}>
+                           DAILY
                         </Text>
                       </Pressable>
                       <Pressable
-                        style={[styles.modeBtn, mode === 'date_time' && styles.modeBtnActive]}
+                        style={[
+                          styles.modeBtn, 
+                          { borderRightColor: 'transparent' },
+                          mode === 'date_time' && { backgroundColor: colors.primary }
+                        ]}
                         onPress={() => handleModeChange(schedule.crawler_name, 'date_time')}
                         disabled={isUpdating}
                       >
-                        <Text style={[styles.modeBtnText, mode === 'date_time' && styles.modeBtnActiveText]}>
-                          ONCE
+                        <Text style={[
+                          styles.modeBtnText, 
+                          { color: colors.text },
+                          mode === 'date_time' && { color: isDark ? '#1c1b1b' : '#ffffff' }
+                        ]}>
+                           ONCE
                         </Text>
                       </Pressable>
                     </View>
@@ -365,25 +405,32 @@ export default function CrawlerSettingsScreen() {
                     {/* Mode Specific Controls */}
                     {mode === 'interval' && (
                       <View style={styles.intervalControls}>
-                        <Text style={styles.controlLabel}>
+                        <Text style={[styles.controlLabel, { color: colors.text }]}>
                           INTERVAL:{' '}
-                          <Text style={styles.highlightText}>{schedule.interval_minutes}</Text> MINS
+                          <Text style={[styles.highlightText, { color: colors.primary }]}>{schedule.interval_minutes}</Text> MINS
                         </Text>
                         
                         <View style={styles.btnRow}>
                           <Pressable
-                            style={[styles.adjustBtn, schedule.interval_minutes <= 15 ? styles.adjustBtnDisabled : null]}
+                            style={[
+                              styles.adjustBtn, 
+                              { backgroundColor: colors.surfaceContainer, borderColor: colors.border },
+                              schedule.interval_minutes <= 15 ? styles.adjustBtnDisabled : null
+                            ]}
                             onPress={() => handleAdjustInterval(schedule, -15)}
                             disabled={isUpdating || schedule.interval_minutes <= 15}
                           >
-                            <Text style={styles.adjustBtnText}>-15M</Text>
+                            <Text style={[styles.adjustBtnText, { color: colors.text }]}>-15M</Text>
                           </Pressable>
                           <Pressable
-                            style={styles.adjustBtn}
+                            style={[
+                              styles.adjustBtn,
+                              { backgroundColor: colors.surfaceContainer, borderColor: colors.border }
+                            ]}
                             onPress={() => handleAdjustInterval(schedule, 15)}
                             disabled={isUpdating}
                           >
-                            <Text style={styles.adjustBtnText}>+15M</Text>
+                            <Text style={[styles.adjustBtnText, { color: colors.text }]}>+15M</Text>
                           </Pressable>
                         </View>
                       </View>
@@ -391,9 +438,9 @@ export default function CrawlerSettingsScreen() {
 
                     {mode === 'daily' && (
                       <View style={styles.scheduleRow}>
-                        <Text style={styles.controlLabel}>
+                        <Text style={[styles.controlLabel, { color: colors.text }]}>
                           DAILY AT:{' '}
-                          <Text style={styles.highlightText}>
+                          <Text style={[styles.highlightText, { color: colors.primary }]}>
                             {(() => {
                               const { hour, minute } = decodeDailyTime(schedule.interval_minutes);
                               return formatDailyTime(hour, minute);
@@ -404,7 +451,7 @@ export default function CrawlerSettingsScreen() {
                         {Platform.OS === 'web' ? (
                           <input
                             type="time"
-                            style={webStyles.inputTime}
+                            style={dynamicWebTimeStyle}
                             defaultValue={(() => {
                               const { hour, minute } = decodeDailyTime(schedule.interval_minutes);
                               return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
@@ -414,11 +461,11 @@ export default function CrawlerSettingsScreen() {
                           />
                         ) : (
                           <Pressable
-                            style={styles.adjustBtn}
+                            style={[styles.adjustBtn, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}
                             onPress={() => openNativePicker(schedule.crawler_name, 'daily')}
                             disabled={isUpdating}
                           >
-                            <Text style={styles.adjustBtnText}>SET TIME</Text>
+                            <Text style={[styles.adjustBtnText, { color: colors.text }]}>SET TIME</Text>
                           </Pressable>
                         )}
                       </View>
@@ -427,8 +474,8 @@ export default function CrawlerSettingsScreen() {
                     {mode === 'date_time' && (
                       <View style={styles.scheduleRow}>
                         <View style={styles.labelCol}>
-                          <Text style={styles.controlLabel}>ONCE AT:</Text>
-                          <Text style={styles.dateLabelText}>
+                          <Text style={[styles.controlLabel, { color: colors.text }]}>ONCE AT:</Text>
+                          <Text style={[styles.dateLabelText, { color: colors.primary }]}>
                             {schedule.interval_minutes >= 1000000
                               ? formatDateTime(decodeDateTime(schedule.interval_minutes))
                               : 'NOT SET'}
@@ -438,7 +485,7 @@ export default function CrawlerSettingsScreen() {
                         {Platform.OS === 'web' ? (
                           <input
                             type="datetime-local"
-                            style={webStyles.inputDateTime}
+                            style={dynamicWebDateTimeStyle}
                             defaultValue={(() => {
                               if (schedule.interval_minutes < 1000000) return '';
                               const d = decodeDateTime(schedule.interval_minutes);
@@ -455,11 +502,11 @@ export default function CrawlerSettingsScreen() {
                           />
                         ) : (
                           <Pressable
-                            style={styles.adjustBtn}
+                            style={[styles.adjustBtn, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}
                             onPress={() => openNativePicker(schedule.crawler_name, 'once')}
                             disabled={isUpdating}
                           >
-                            <Text style={styles.adjustBtnText}>SET DATE</Text>
+                            <Text style={[styles.adjustBtnText, { color: colors.text }]}>SET DATE</Text>
                           </Pressable>
                         )}
                       </View>

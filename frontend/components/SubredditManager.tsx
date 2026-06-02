@@ -131,9 +131,9 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
           disabled={isSubmitting}
         >
           {isSubmitting ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <ActivityIndicator size="small" color={colors.isDark ? '#1c1b1b' : '#FFFFFF'} />
           ) : (
-            <Ionicons name="add" size={24} color="#FFFFFF" />
+            <Ionicons name="add" size={24} color={colors.isDark ? '#1c1b1b' : '#FFFFFF'} />
           )}
         </Pressable>
       </View>
@@ -194,7 +194,7 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
               style={[
                 styles.suggestionChip,
                 { backgroundColor: colors.surfaceContainer, borderColor: colors.border },
-                isAdded ? styles.suggestionChipAdded : null,
+                isAdded ? { backgroundColor: colors.surfaceDim, opacity: 0.5 } : null,
               ]}
               onPress={() => !isAdded && handleAdd(sub.name)}
               disabled={isAdded || isSubmitting}

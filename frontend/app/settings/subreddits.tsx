@@ -2,8 +2,10 @@ import React from 'react';
 import { StyleSheet, View, ScrollView } from 'react-native';
 import { SubredditManager } from '@/components/SubredditManager';
 import { useUserSubreddits } from '@/hooks/useUserSubreddits';
+import { useTheme } from '@/hooks/useTheme';
 
 export default function ManageSubredditsScreen() {
+  const colors = useTheme();
   const {
     subreddits,
     suggestions,
@@ -14,7 +16,7 @@ export default function ManageSubredditsScreen() {
   } = useUserSubreddits();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <SubredditManager
           subreddits={subreddits}
