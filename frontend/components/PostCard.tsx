@@ -19,6 +19,13 @@ export interface PostType {
   };
   thumbnail_url?: string;
   ai_summary?: string;
+  similar_posts?: {
+    id: string;
+    title: string;
+    url: string;
+    source_name: string;
+    source_type: string;
+  }[];
   raw_data?: {
     stars?: number;
     forks?: number;

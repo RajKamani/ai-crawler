@@ -34,6 +34,21 @@ export default function HomeFeedScreen() {
   
   // Height container measurement
   const [containerHeight, setContainerHeight] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/posts/unread/count`, {
+        headers: { ...AUTH_HEADER }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUnreadCount(data.unread_count || 0);
+      }
+    } catch (e) {
+      console.error('Error fetching unread count:', e);
+    }
+  };
 
   // Viewed posts and new data notification hooks
   const { viewedIds, markAsViewed } = useViewedPosts();
@@ -72,6 +87,11 @@ export default function HomeFeedScreen() {
     };
     fetchSources();
   }, []);
+
+  // Fetch unread count on mount and when viewedIds size changes
+  useEffect(() => {
+    fetchUnreadCount();
+  }, [viewedIds.size]);
 
   // Debounce search input
   useEffect(() => {
@@ -223,7 +243,14 @@ export default function HomeFeedScreen() {
       {/* Header Area */}
       <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
         <View style={styles.titleContainer}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>AI CRAWLER</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>AI CRAWLER</Text>
+            {unreadCount > 0 && (
+              <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
+                <Text style={styles.unreadBadgeText}>{unreadCount} NEW</Text>
+              </View>
+            )}
+          </View>
           <Text style={[styles.headerSubtitle, { color: colors.primary }]}>PERSONALIZED FEED // INSHORTS</Text>
         </View>
       </View>
@@ -410,6 +437,17 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     flexDirection: 'column',
+  },
+  unreadBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 2,
+  },
+  unreadBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
   headerTitle: {
     color: '#1c1b1b',

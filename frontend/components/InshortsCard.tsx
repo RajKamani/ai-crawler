@@ -70,6 +70,7 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
   const [showSummary, setShowSummary] = useState(false);
   const [summaryText, setSummaryText] = useState<string | null>(post.ai_summary || null);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+  const [similarExpanded, setSimilarExpanded] = useState(false);
 
   const sourceType = post.sources?.type || 'blog';
   const sourceName = post.sources?.name || post.author || 'Blog';
@@ -326,6 +327,58 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
                       <Text style={[styles.commentBody, { color: colors.text }]}>{comment.body}</Text>
                     </View>
                   ))}
+                </View>
+              )}
+
+              {post.similar_posts && post.similar_posts.length > 0 && (
+                <View style={[styles.similarContainer, { borderTopColor: colors.border }]}>
+                  <Pressable
+                    style={styles.similarHeaderRow}
+                    onPress={() => setSimilarExpanded(!similarExpanded)}
+                  >
+                    <Text style={[styles.similarHeader, { color: colors.primary }]}>
+                      ALSO COVERED IN ({post.similar_posts.length})
+                    </Text>
+                    <Ionicons
+                      name={similarExpanded ? 'chevron-up' : 'chevron-down'}
+                      size={14}
+                      color={colors.primary}
+                    />
+                  </Pressable>
+                  {similarExpanded &&
+                    post.similar_posts.map((sim: any, idx: number) => (
+                      <Pressable
+                        key={idx}
+                        style={[
+                          styles.similarItem,
+                          { backgroundColor: colors.surfaceContainer, borderColor: colors.border },
+                        ]}
+                        onPress={() => Linking.openURL(sim.url)}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 8 }}>
+                          <Text style={[styles.similarTitle, { color: colors.text }]} numberOfLines={2}>
+                            {sim.title}
+                          </Text>
+                          <Ionicons name="chevron-forward-outline" size={14} color={colors.primary} />
+                        </View>
+                        <View style={styles.similarMeta}>
+                          <FontAwesome5
+                            name={
+                              sim.source_type === 'reddit'
+                                ? 'reddit'
+                                : sim.source_type === 'github'
+                                ? 'github'
+                                : 'rss'
+                            }
+                            size={10}
+                            color={colors.tabIconDefault}
+                          />
+                          <Text style={[styles.similarSourceText, { color: colors.tabIconDefault }]}>
+                            {sim.source_name}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    ))}
                 </View>
               )}
             </View>
@@ -667,5 +720,45 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontFamily: 'SpaceMono',
     color: '#1c1b1b',
+  },
+  similarContainer: {
+    marginTop: 18,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#1c1b1b',
+  },
+  similarHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  similarHeader: {
+    fontSize: 12,
+    fontWeight: '800',
+    fontFamily: 'SpaceMono',
+    textTransform: 'uppercase',
+  },
+  similarItem: {
+    borderWidth: 1,
+    padding: 10,
+    marginBottom: 8,
+  },
+  similarTitle: {
+    fontSize: 12,
+    lineHeight: 18,
+    fontFamily: 'SpaceMono',
+    flex: 1,
+  },
+  similarMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 6,
+  },
+  similarSourceText: {
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
   },
 });
