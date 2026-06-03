@@ -19,7 +19,8 @@ from app.api.routes import (
     summary,
     crawl,
     post_views,
-    notifications
+    notifications,
+    bug_reports
 )
 
 # Configure logging
@@ -166,6 +167,7 @@ app.include_router(summary.router)
 app.include_router(crawl.router)
 app.include_router(post_views.router)
 app.include_router(notifications.router)
+app.include_router(bug_reports.router)
 
 @app.get("/")
 @app.get("/health")

@@ -163,7 +163,7 @@ export default function SettingsHubScreen() {
               style={Platform.OS === 'web' ? { marginLeft: 10 } : null}
             />
           </View>
-          <View style={[styles.menuItem, { borderBottomColor: colors.border, borderBottomWidth: 0 }]}>
+          <View style={[styles.menuItem, { borderBottomColor: colors.border }]}>
             <View style={[styles.iconContainer, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
               <Ionicons name={theme === 'dark' ? 'moon' : 'sunny'} size={18} color={colors.text} />
             </View>
@@ -181,6 +181,14 @@ export default function SettingsHubScreen() {
               style={Platform.OS === 'web' ? { marginLeft: 10 } : null}
             />
           </View>
+          <SettingsMenuItem
+            icon="bug-outline"
+            iconColor="#bc000a"
+            title="Bug/Crash Report"
+            subtitle="Submit a bug report or error logs"
+            href="/settings/bug_report"
+            isLast={true}
+          />
         </View>
 
         {/* Info Card */}

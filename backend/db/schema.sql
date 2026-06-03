@@ -108,6 +108,19 @@ CREATE TABLE IF NOT EXISTS crawl_logs (
     completed_at TIMESTAMPTZ
 );
 
+-- 10. Bug Reports Table
+CREATE TABLE IF NOT EXISTS bug_reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    steps_to_reproduce TEXT,
+    device_info JSONB,
+    logs TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_bug_reports_user ON bug_reports(user_id);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_posts_source ON posts(source_id);
 CREATE INDEX IF NOT EXISTS idx_posts_published ON posts(published_at DESC);

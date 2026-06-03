@@ -66,3 +66,11 @@ class NotificationTokenRegister(BaseModel):
 class ToggleActiveState(BaseModel):
     is_active: bool
 
+
+class BugReportCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    description: str = Field(..., min_length=1, max_length=5000)
+    steps_to_reproduce: Optional[str] = Field(None, max_length=5000)
+    device_info: Optional[dict] = None
+    logs: Optional[str] = Field(None, max_length=50000)
+

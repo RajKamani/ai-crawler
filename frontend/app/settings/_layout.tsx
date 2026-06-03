@@ -27,6 +27,7 @@ export default function SettingsLayout() {
       <Stack.Screen name="github" options={{ title: 'GITHUB PREFERENCES' }} />
       <Stack.Screen name="bookmarks" options={{ title: 'BOOKMARKS' }} />
       <Stack.Screen name="crawlers" options={{ title: 'CRAWLER SCHEDULES' }} />
+      <Stack.Screen name="bug_report" options={{ title: 'SUBMIT BUG REPORT' }} />
     </Stack>
   );
 }
