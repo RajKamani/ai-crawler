@@ -93,7 +93,8 @@ async def get_posts(
             .eq("is_active", True) \
             .execute()
 
-        # 4. Filter allowed source IDs in Python based on the type filter and user's selections
+        # 4. Filter allowed source IDs in Python based on the type filter and user's selections.
+        # Fall back to showing all global/curated active sources of that type if the user has no custom selections yet.
         allowed_source_ids = []
         for s in sources_res.data:
             s_type = s["type"]
@@ -103,14 +104,14 @@ async def get_posts(
                 if s_type == type:
                     if type == "github":
                         allowed_source_ids.append(s["id"])
-                    elif type == "reddit" and clean_sub_name(s_url) in active_sub_names:
+                    elif type == "reddit" and (not active_sub_names or clean_sub_name(s_url) in active_sub_names):
                         allowed_source_ids.append(s["id"])
-                    elif type == "blog" and clean_blog_url(s_url) in active_blog_urls:
+                    elif type == "blog" and (not active_blog_urls or clean_blog_url(s_url) in active_blog_urls):
                         allowed_source_ids.append(s["id"])
             else:
-                if s_type == "reddit" and clean_sub_name(s_url) in active_sub_names:
+                if s_type == "reddit" and (not active_sub_names or clean_sub_name(s_url) in active_sub_names):
                     allowed_source_ids.append(s["id"])
-                elif s_type == "blog" and clean_blog_url(s_url) in active_blog_urls:
+                elif s_type == "blog" and (not active_blog_urls or clean_blog_url(s_url) in active_blog_urls):
                     allowed_source_ids.append(s["id"])
 
         if not allowed_source_ids:
@@ -232,14 +233,15 @@ async def get_personalized_feed(
             .eq("is_active", True) \
             .execute()
 
-        # 4. Filter sources in Python to only include selected subreddits and blogs
+        # 4. Filter sources in Python to only include selected subreddits and blogs.
+        # Fall back to showing all global/curated active sources if the user has no custom selections yet.
         source_ids = []
         for s in sources_res.data:
             s_type = s["type"]
             s_url = s["url"]
-            if s_type == "reddit" and clean_sub_name(s_url) in active_sub_names:
+            if s_type == "reddit" and (not active_sub_names or clean_sub_name(s_url) in active_sub_names):
                 source_ids.append(s["id"])
-            elif s_type == "blog" and clean_blog_url(s_url) in active_blog_urls:
+            elif s_type == "blog" and (not active_blog_urls or clean_blog_url(s_url) in active_blog_urls):
                 source_ids.append(s["id"])
 
         if not source_ids:
