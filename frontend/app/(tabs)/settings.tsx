@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, Pressable, ScrollView, Switch, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
@@ -6,6 +6,8 @@ import { Link, router } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useThemeContext } from '../../context/ThemeContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { usePushNotifications } from '../../hooks/usePushNotifications';
 
 interface SettingsMenuItemProps {
   icon: string;
@@ -54,6 +56,27 @@ export default function SettingsHubScreen() {
   const { theme, toggleTheme } = useThemeContext();
   const email = user?.email || 'mock-user@local.host';
   const username = email.split('@')[0].toUpperCase();
+
+  const { registerForPushNotifications, unregisterForPushNotifications } = usePushNotifications();
+  const [pushEnabled, setPushEnabled] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem('@push_enabled').then((val) => {
+      setPushEnabled(val === 'true');
+    });
+  }, []);
+
+  const handleTogglePush = async (value: boolean) => {
+    setPushEnabled(value);
+    if (value) {
+      const token = await registerForPushNotifications();
+      if (!token) {
+        setPushEnabled(false);
+      }
+    } else {
+      await unregisterForPushNotifications();
+    }
+  };
 
   const isDark = colors.isDark;
 
@@ -122,6 +145,24 @@ export default function SettingsHubScreen() {
             subtitle="View your saved articles & repos"
             href="/settings/bookmarks"
           />
+          <View style={[styles.menuItem, { borderBottomColor: colors.border }]}>
+            <View style={[styles.iconContainer, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
+              <Ionicons name="notifications" size={18} color={colors.text} />
+            </View>
+            <View style={styles.textContainer}>
+              <Text style={[styles.menuTitle, { color: colors.text }]}>PUSH NOTIFICATIONS</Text>
+              <Text style={[styles.menuSubtitle, { color: colors.tabIconDefault }]}>
+                {pushEnabled ? 'Alerts active for new posts' : 'Disabled (Tap to enable)'}
+              </Text>
+            </View>
+            <Switch
+              value={pushEnabled}
+              onValueChange={handleTogglePush}
+              trackColor={{ false: theme === 'dark' ? '#2c2b2b' : '#dcd9d9', true: theme === 'dark' ? 'rgba(255, 79, 79, 0.3)' : 'rgba(188, 0, 10, 0.3)' }}
+              thumbColor={pushEnabled ? colors.primary : colors.tabIconDefault}
+              style={Platform.OS === 'web' ? { marginLeft: 10 } : null}
+            />
+          </View>
           <View style={[styles.menuItem, { borderBottomColor: colors.border, borderBottomWidth: 0 }]}>
             <View style={[styles.iconContainer, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
               <Ionicons name={theme === 'dark' ? 'moon' : 'sunny'} size={18} color={colors.text} />

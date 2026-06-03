@@ -11,13 +11,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 import { API_BASE_URL, AUTH_HEADER } from '@/constants/Config';
 import { PostType } from '@/components/PostCard';
 import { InshortsCard } from '@/components/InshortsCard';
 import { useViewedPosts } from '@/hooks/useViewedPosts';
 import { useNewContentNotification } from '@/hooks/useNewContentNotification';
 import { useTheme } from '@/hooks/useTheme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function HomeFeedScreen() {
   const colors = useTheme();
@@ -35,6 +36,44 @@ export default function HomeFeedScreen() {
   // Height container measurement
   const [containerHeight, setContainerHeight] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
+
+  const navigation = useNavigation();
+
+  const checkUnreadNotifications = async () => {
+    try {
+      const stored = await AsyncStorage.getItem('@notification_history');
+      if (stored) {
+        const history = JSON.parse(stored);
+        const hasUnread = history.some((item: any) => !item.isRead);
+        setHasUnreadNotifications(hasUnread);
+      } else {
+        setHasUnreadNotifications(false);
+      }
+    } catch (e) {
+      console.error('Failed to check unread notifications:', e);
+    }
+  };
+
+  useEffect(() => {
+    checkUnreadNotifications();
+
+    // Listen to real-time notification received events
+    const { DeviceEventEmitter } = require('react-native');
+    const sub = DeviceEventEmitter.addListener('notificationReceived', () => {
+      checkUnreadNotifications();
+    });
+
+    // Listen to focus changes to update when coming back from modal tray screen
+    const unsubscribeFocus = navigation.addListener('focus', () => {
+      checkUnreadNotifications();
+    });
+
+    return () => {
+      sub.remove();
+      unsubscribeFocus();
+    };
+  }, [navigation]);
 
   const fetchUnreadCount = async () => {
     try {
@@ -253,6 +292,16 @@ export default function HomeFeedScreen() {
           </View>
           <Text style={[styles.headerSubtitle, { color: colors.primary }]}>PERSONALIZED FEED // INSHORTS</Text>
         </View>
+
+        <Pressable
+          style={styles.bellButton}
+          onPress={() => router.push('/modal' as any)}
+        >
+          <Ionicons name="notifications-outline" size={24} color={colors.text} />
+          {hasUnreadNotifications && (
+            <View style={[styles.bellRedDot, { backgroundColor: colors.primary, borderColor: colors.background }]} />
+          )}
+        </Pressable>
       </View>
 
       {/* New updates banner */}
@@ -461,6 +510,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: 'SpaceMono',
     marginTop: 2,
+  },
+  bellButton: {
+    padding: 6,
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bellRedDot: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    borderWidth: 1.5,
   },
   searchBar: {
     flexDirection: 'row',

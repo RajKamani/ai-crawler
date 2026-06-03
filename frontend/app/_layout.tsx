@@ -15,6 +15,7 @@ import { OnboardingScreen } from '../components/OnboardingScreen';
 import { supabase } from '../utils/supabase';
 import { API_BASE_URL } from '../constants/Config';
 import { useTheme } from '../hooks/useTheme';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 // Global Fetch Interceptor to inject Supabase Auth JWT Bearer token dynamically
 const originalFetch = global.fetch;
@@ -125,6 +126,9 @@ function RootLayoutNav() {
   const colors = useTheme();
   const { session, isLoading } = useAuth();
   const [isOnboarded, setIsOnboarded] = useState<boolean | null>(null);
+
+  // Initialize push notification settings & listeners on app mount
+  usePushNotifications();
 
   useEffect(() => {
     if (session?.user) {
