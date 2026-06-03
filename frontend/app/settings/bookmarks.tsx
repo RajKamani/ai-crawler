@@ -12,9 +12,11 @@ import { PostCard, PostType } from '@/components/PostCard';
 import { GitHubRepoCard } from '@/components/GitHubRepoCard';
 import { SummarizeSheet } from '@/components/SummarizeSheet';
 import { useTheme } from '@/hooks/useTheme';
+import { useToast } from '@/context/ToastContext';
 
 export default function BookmarksScreen() {
   const colors = useTheme();
+  const { showToast } = useToast();
   const [posts, setPosts] = useState<PostType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -38,9 +40,12 @@ export default function BookmarksScreen() {
       const data = await response.json();
       if (response.ok) {
         setPosts(data.posts || []);
+      } else {
+        showToast({ message: 'Failed to load bookmarks', type: 'error' });
       }
     } catch (error) {
       console.error('Error fetching bookmarks:', error);
+      showToast({ message: 'Connection error while fetching bookmarks', type: 'error' });
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -58,12 +63,19 @@ export default function BookmarksScreen() {
 
     try {
       const url = `${API_BASE_URL}/bookmarks/${postId}`;
-      await fetch(url, {
+      const response = await fetch(url, {
         method: 'DELETE',
         headers: { ...AUTH_HEADER },
       });
+      if (response.ok) {
+        showToast({ message: 'Removed from bookmarks', type: 'success' });
+      } else {
+        showToast({ message: 'Failed to remove bookmark', type: 'error' });
+        fetchBookmarks();
+      }
     } catch (error) {
       console.error('Error removing bookmark:', error);
+      showToast({ message: 'Error removing bookmark', type: 'error' });
       // Fetch list again on error to revert state
       fetchBookmarks();
     }
@@ -92,10 +104,12 @@ export default function BookmarksScreen() {
         setActiveSummary(data.summary);
       } else {
         setActiveSummary('Failed to retrieve summary.');
+        showToast({ message: 'Failed to generate AI summary', type: 'error' });
       }
     } catch (error) {
       console.error('Error summarization:', error);
       setActiveSummary('Network error occurred during AI summary.');
+      showToast({ message: 'Failed to generate AI summary', type: 'error' });
     } finally {
       setIsSummaryLoading(false);
     }

@@ -14,10 +14,12 @@ import { Stack, router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '@/hooks/useTheme';
 import { NotificationHistoryItem } from '@/hooks/usePushNotifications';
+import { useToast } from '@/context/ToastContext';
 
 export default function NotificationsModalScreen() {
   const colors = useTheme();
   const isDark = colors.isDark;
+  const { showToast } = useToast();
 
   const [notifications, setNotifications] = useState<NotificationHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -33,6 +35,7 @@ export default function NotificationsModalScreen() {
       }
     } catch (e) {
       console.error('Failed to load notifications history:', e);
+      showToast({ message: 'Failed to load notifications history', type: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -58,6 +61,7 @@ export default function NotificationsModalScreen() {
       DeviceEventEmitter.emit('notificationReceived');
     } catch (e) {
       console.error('Failed to mark notification as read:', e);
+      showToast({ message: 'Error marking notification read', type: 'error' });
     }
   };
 
@@ -68,8 +72,10 @@ export default function NotificationsModalScreen() {
 
       const { DeviceEventEmitter } = require('react-native');
       DeviceEventEmitter.emit('notificationReceived');
+      showToast({ message: 'All notifications cleared', type: 'success' });
     } catch (e) {
       console.error('Failed to clear notifications:', e);
+      showToast({ message: 'Failed to clear notifications', type: 'error' });
     }
   };
 

@@ -14,19 +14,13 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/useTheme';
 import { supabase } from '@/utils/supabase';
 import { API_BASE_URL, AUTH_HEADER } from '@/constants/Config';
-
-const showAlert = (title: string, message: string) => {
-  if (Platform.OS === 'web') {
-    alert(`${title}: ${message}`);
-  } else {
-    Alert.alert(title, message);
-  }
-};
+import { useToast } from '@/context/ToastContext';
 
 export default function GitHubSettingsScreen() {
   const { user } = useAuth();
   const colors = useTheme();
   const isDark = colors.isDark;
+  const { showToast } = useToast();
 
   const [githubEnabled, setGithubEnabled] = useState(true);
   const [githubLanguage, setGithubLanguage] = useState('any');
@@ -59,6 +53,7 @@ export default function GitHubSettingsScreen() {
       if (error) throw error;
 
       setShowSuccess(true);
+      showToast({ message: 'GitHub preferences saved successfully', type: 'success' });
 
       // Trigger immediate crawl if enabled
       if (githubEnabled) {
@@ -73,7 +68,7 @@ export default function GitHubSettingsScreen() {
       }
     } catch (err: any) {
       console.error('Failed to update GitHub preferences:', err);
-      showAlert('Save Error', err.message || 'Failed to save configurations.');
+      showToast({ message: err.message || 'Failed to save GitHub configurations', type: 'error' });
     } finally {
       setIsSaving(false);
     }

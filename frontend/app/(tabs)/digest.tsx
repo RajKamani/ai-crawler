@@ -19,6 +19,7 @@ import { PostType } from '@/components/PostCard';
 import { MarkdownRenderer } from '@/components/MarkdownRenderer';
 import { useViewedPosts } from '@/hooks/useViewedPosts';
 import { useTheme } from '@/hooks/useTheme';
+import { useToast } from '@/context/ToastContext';
 
 const { width: screenWidth } = Dimensions.get('window');
 const CARD_WIDTH = screenWidth - 40;
@@ -26,6 +27,7 @@ const CARD_WIDTH = screenWidth - 40;
 export default function MorningDigestScreen() {
   const colors = useTheme();
   const isDark = colors.isDark;
+  const { showToast } = useToast();
   
   const [digestText, setDigestText] = useState<string>('');
   const [posts, setPosts] = useState<PostType[]>([]);
@@ -46,10 +48,12 @@ export default function MorningDigestScreen() {
         setPosts(data.posts || []);
       } else {
         setDigestText('Failed to generate daily digest briefing. Pull down to try again.');
+        showToast({ message: 'Failed to generate briefing', type: 'error' });
       }
     } catch (error) {
       console.error('Error fetching daily digest:', error);
       setDigestText('Connection error. Could not retrieve morning brief.');
+      showToast({ message: 'Connection error', type: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -84,12 +88,19 @@ export default function MorningDigestScreen() {
         setPosts((prev) =>
           prev.map((p) => (p.id === postId ? { ...p, is_bookmarked: isBookmarked } : p))
         );
+        showToast({ message: 'Failed to update bookmark', type: 'error' });
+      } else {
+        showToast({
+          message: isBookmarked ? 'Removed from bookmarks' : 'Added to bookmarks',
+          type: 'success',
+        });
       }
     } catch (error) {
       console.error('Error bookmarking digest post:', error);
       setPosts((prev) =>
         prev.map((p) => (p.id === postId ? { ...p, is_bookmarked: isBookmarked } : p))
       );
+      showToast({ message: 'Error updating bookmark status', type: 'error' });
     }
   };
 
@@ -100,8 +111,10 @@ export default function MorningDigestScreen() {
         title: post.title,
         url: post.url,
       });
+      showToast({ message: 'Link shared successfully', type: 'success' });
     } catch (error: any) {
       console.error('Error sharing post:', error);
+      showToast({ message: 'Failed to share story', type: 'error' });
     }
   };
 
@@ -113,8 +126,10 @@ export default function MorningDigestScreen() {
         }
       }
       setMarkedAllRead(true);
+      showToast({ message: 'All stories marked read', type: 'success' });
     } catch (error) {
       console.error('Failed to mark all as read:', error);
+      showToast({ message: 'Failed to mark stories read', type: 'error' });
     }
   };
 

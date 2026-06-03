@@ -14,6 +14,7 @@ import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { PostType } from './PostCard';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { useTheme } from '@/hooks/useTheme';
+import { useToast } from '@/context/ToastContext';
 
 
 interface InshortsCardProps {
@@ -67,6 +68,7 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
 }) => {
   const colors = useTheme();
   const isDark = colors.isDark;
+  const { showToast } = useToast();
   const [showSummary, setShowSummary] = useState(false);
   const [summaryText, setSummaryText] = useState<string | null>(post.ai_summary || null);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
@@ -133,8 +135,10 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
         title: post.title,
         url: post.url,
       });
+      showToast({ message: 'Story link shared', type: 'success' });
     } catch (error: any) {
       console.error('Error sharing post:', error);
+      showToast({ message: 'Failed to share story', type: 'error' });
     }
   };
 
@@ -153,9 +157,11 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
           setSummaryText(fetched);
         } else {
           setSummaryText('Unable to retrieve AI summary.');
+          showToast({ message: 'Failed to generate AI aggregate takeaways', type: 'error' });
         }
       } catch (err) {
         setSummaryText('Error loading AI summary.');
+        showToast({ message: 'Failed to generate AI aggregate takeaways', type: 'error' });
       } finally {
         setIsLoadingSummary(false);
       }

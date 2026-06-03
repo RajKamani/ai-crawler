@@ -19,9 +19,11 @@ import { useViewedPosts } from '@/hooks/useViewedPosts';
 import { useNewContentNotification } from '@/hooks/useNewContentNotification';
 import { useTheme } from '@/hooks/useTheme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useToast } from '@/context/ToastContext';
 
 export default function HomeFeedScreen() {
   const colors = useTheme();
+  const { showToast } = useToast();
   const [posts, setPosts] = useState<PostType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -181,6 +183,7 @@ export default function HomeFeedScreen() {
     } catch (error) {
       console.error('Error fetching feed:', error);
       setHasMore(false);
+      showToast({ message: 'Failed to fetch news feed', type: 'error' });
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -226,6 +229,12 @@ export default function HomeFeedScreen() {
         setPosts((prev) =>
           prev.map((p) => (p.id === postId ? { ...p, is_bookmarked: isBookmarked } : p))
         );
+        showToast({ message: 'Failed to update bookmark', type: 'error' });
+      } else {
+        showToast({
+          message: isBookmarked ? 'Removed from bookmarks' : 'Added to bookmarks',
+          type: 'success',
+        });
       }
     } catch (error) {
       console.error('Error bookmarking post:', error);
@@ -233,6 +242,7 @@ export default function HomeFeedScreen() {
       setPosts((prev) =>
         prev.map((p) => (p.id === postId ? { ...p, is_bookmarked: isBookmarked } : p))
       );
+      showToast({ message: 'Error updating bookmark status', type: 'error' });
     }
   };
 

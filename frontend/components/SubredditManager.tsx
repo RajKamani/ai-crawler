@@ -13,6 +13,7 @@ import {
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 import { PreviewPost } from '@/hooks/useUserBlogs';
+import { useToast } from '@/context/ToastContext';
 
 interface SubredditItem {
   id: string;
@@ -40,6 +41,7 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
 }) => {
   const colors = useTheme();
   const isDark = colors.isDark;
+  const { showToast } = useToast();
   const [newSub, setNewSub] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -55,8 +57,10 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
       const result = await onAddSubreddit(nameToAdd);
       setNewSub('');
       setSuccessResult(result);
+      showToast({ message: `Subreddit r/${nameToAdd} added successfully`, type: 'success' });
     } catch (err: any) {
       setErrorMsg(err.message || 'Subreddit could not be verified.');
+      showToast({ message: err.message || 'Failed to verify subreddit', type: 'error' });
     } finally {
       setIsSubmitting(false);
     }
@@ -67,8 +71,10 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
     setErrorMsg('');
     try {
       await onToggleSubreddit(id, isActive);
+      showToast({ message: `Subreddit updated`, type: 'success' });
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to toggle subreddit.');
+      showToast({ message: err.message || 'Failed to toggle subreddit', type: 'error' });
     } finally {
       setUpdatingItems((prev) => {
         const copy = { ...prev };
@@ -83,8 +89,10 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({
     setErrorMsg('');
     try {
       await onRemoveSubreddit(id);
+      showToast({ message: `Subreddit removed`, type: 'success' });
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to remove subreddit.');
+      showToast({ message: err.message || 'Failed to remove subreddit', type: 'error' });
     } finally {
       setUpdatingItems((prev) => {
         const copy = { ...prev };

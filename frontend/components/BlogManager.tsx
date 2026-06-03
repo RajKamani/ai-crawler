@@ -12,6 +12,7 @@ import {
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 import { PreviewPost } from '@/hooks/useUserBlogs';
+import { useToast } from '@/context/ToastContext';
 
 interface BlogItem {
   id: string;
@@ -40,6 +41,7 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
 }) => {
   const colors = useTheme();
   const isDark = colors.isDark;
+  const { showToast } = useToast();
   const [blogName, setBlogName] = useState('');
   const [blogUrl, setBlogUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -52,6 +54,7 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
     const trimmedUrl = url.trim();
     if (!trimmedName || !trimmedUrl) {
       setErrorMsg('Both name and RSS URL are required');
+      showToast({ message: 'Both name and RSS URL are required', type: 'error' });
       return;
     }
     
@@ -63,8 +66,10 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
       setBlogName('');
       setBlogUrl('');
       setSuccessResult(result);
+      showToast({ message: `Blog feed "${trimmedName}" added successfully`, type: 'success' });
     } catch (err: any) {
       setErrorMsg(err.message || 'Could not parse RSS feed.');
+      showToast({ message: err.message || 'Failed to parse RSS feed', type: 'error' });
     } finally {
       setIsSubmitting(false);
     }
@@ -75,8 +80,10 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
     setErrorMsg('');
     try {
       await onToggleBlog(id, isActive);
+      showToast({ message: `Blog updated`, type: 'success' });
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to toggle blog.');
+      showToast({ message: err.message || 'Failed to toggle blog', type: 'error' });
     } finally {
       setUpdatingItems((prev) => {
         const copy = { ...prev };
@@ -91,8 +98,10 @@ export const BlogManager: React.FC<BlogManagerProps> = ({
     setErrorMsg('');
     try {
       await onRemoveBlog(id);
+      showToast({ message: `Blog removed`, type: 'success' });
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to remove blog.');
+      showToast({ message: err.message || 'Failed to remove blog', type: 'error' });
     } finally {
       setUpdatingItems((prev) => {
         const copy = { ...prev };

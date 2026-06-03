@@ -31,29 +31,37 @@ async def trigger_crawl(
 ):
     """Manually trigger a crawler task by name (asynchronous background task)"""
     crawler_name = body.crawler
+    try:
+        if crawler_name not in CRAWLER_JOBS:
+            raise HTTPException(400, f"Invalid crawler name: {crawler_name}")
 
-    # Start the log synchronously to get a log_id
-    if crawler_name in ["blog_user", "reddit_user"]:
-        log_id = start_crawl_log(crawler_name, user_id=user.id)
-    else:
-        log_id = start_crawl_log(crawler_name)
-        
-    if not log_id:
-        raise HTTPException(500, "Failed to initialize crawl log")
+        # Start the log synchronously to get a log_id
+        if crawler_name in ["blog_user", "reddit_user"]:
+            log_id = start_crawl_log(crawler_name, user_id=user.id)
+        else:
+            log_id = start_crawl_log(crawler_name)
+            
+        if not log_id:
+            raise HTTPException(500, "Failed to initialize crawl log")
 
-    # Queue job function in background
-    job_func = CRAWLER_JOBS[crawler_name]
-    if crawler_name in ["blog_user", "reddit_user"]:
-        background_tasks.add_task(job_func, user_id=user.id, log_id=log_id)
-    else:
-        background_tasks.add_task(job_func, log_id)
+        # Queue job function in background
+        job_func = CRAWLER_JOBS[crawler_name]
+        if crawler_name in ["blog_user", "reddit_user"]:
+            background_tasks.add_task(job_func, user_id=user.id, log_id=log_id)
+        else:
+            background_tasks.add_task(job_func, log_id)
 
-    return {
-        "crawler": crawler_name,
-        "status": "accepted",
-        "crawl_log_id": log_id,
-        "message": f"Successfully triggered crawler '{crawler_name}' in background."
-    }
+        return {
+            "crawler": crawler_name,
+            "status": "accepted",
+            "crawl_log_id": log_id,
+            "message": f"Successfully triggered crawler '{crawler_name}' in background."
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error manual triggering crawler '{crawler_name}': {e}")
+        raise HTTPException(500, f"Error manual triggering crawler: {str(e)}")
 
 @router.get("/logs")
 async def get_crawl_logs(limit: int = 20, user = Depends(get_current_user)):

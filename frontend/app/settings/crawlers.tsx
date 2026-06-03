@@ -13,15 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useCrawlerSettings, CrawlerSchedule } from '@/hooks/useCrawlerSettings';
 import { useTheme } from '@/hooks/useTheme';
-
-const showAlert = (title: string, message: string) => {
-  if (Platform.OS === 'web') {
-    alert(`${title}: ${message}`);
-  } else {
-    Alert.alert(title, message);
-  }
-};
-
+import { useToast } from '@/context/ToastContext';
 
 // Conditionally import DateTimePicker to prevent Web bundler crashes
 let DateTimePicker: any = null;
@@ -77,6 +69,7 @@ const encodeDateTime = (date: Date) => {
 export default function CrawlerSettingsScreen() {
   const colors = useTheme();
   const isDark = colors.isDark;
+  const { showToast } = useToast();
   const { schedules, isLoading, updateSchedule } = useCrawlerSettings();
   const [updatingName, setUpdatingName] = useState<string | null>(null);
 
@@ -126,9 +119,10 @@ export default function CrawlerSettingsScreen() {
     setUpdatingName(schedule.crawler_name);
     try {
       await updateSchedule(schedule.crawler_name, undefined, value);
+      showToast({ message: `${getDisplayName(schedule.crawler_name)} ${value ? 'enabled' : 'disabled'}`, type: 'success' });
     } catch (err) {
       console.error('Error toggling crawler:', err);
-      showAlert('Update Failed', err instanceof Error ? err.message : String(err));
+      showToast({ message: err instanceof Error ? err.message : 'Failed to update crawler status', type: 'error' });
     } finally {
       setUpdatingName(null);
     }
@@ -141,9 +135,10 @@ export default function CrawlerSettingsScreen() {
     setUpdatingName(schedule.crawler_name);
     try {
       await updateSchedule(schedule.crawler_name, newInterval, schedule.is_active);
+      showToast({ message: `Interval updated to ${newInterval} minutes`, type: 'success' });
     } catch (err) {
       console.error('Error adjusting interval:', err);
-      showAlert('Update Failed', err instanceof Error ? err.message : String(err));
+      showToast({ message: err instanceof Error ? err.message : 'Failed to update interval', type: 'error' });
     } finally {
       setUpdatingName(null);
     }
@@ -164,9 +159,10 @@ export default function CrawlerSettingsScreen() {
       const currentSchedule = schedules.find(s => s.crawler_name === name);
       const currentIsActive = currentSchedule ? currentSchedule.is_active : true;
       await updateSchedule(name, defaultVal, currentIsActive);
+      showToast({ message: `Crawl mode updated to ${targetMode}`, type: 'success' });
     } catch (err) {
       console.error('Error changing mode:', err);
-      showAlert('Mode Change Failed', err instanceof Error ? err.message : String(err));
+      showToast({ message: err instanceof Error ? err.message : 'Failed to update crawl mode', type: 'error' });
     } finally {
       setUpdatingName(null);
     }
@@ -192,9 +188,10 @@ export default function CrawlerSettingsScreen() {
       try {
         const encoded = encodeDailyTime(selectedValue.getHours(), selectedValue.getMinutes());
         await updateSchedule(crawlerName, encoded, currentIsActive);
+        showToast({ message: `Crawl daily time updated`, type: 'success' });
       } catch (err) {
         console.error('Error saving daily time:', err);
-        showAlert('Save Failed', err instanceof Error ? err.message : String(err));
+        showToast({ message: err instanceof Error ? err.message : 'Failed to save daily time', type: 'error' });
       } finally {
         setUpdatingName(null);
       }
@@ -219,9 +216,10 @@ export default function CrawlerSettingsScreen() {
         try {
           const encoded = encodeDateTime(mergedDate);
           await updateSchedule(crawlerName, encoded, currentIsActive);
+          showToast({ message: `Crawl date/time updated`, type: 'success' });
         } catch (err) {
           console.error('Error saving date/time:', err);
-          showAlert('Save Failed', err instanceof Error ? err.message : String(err));
+          showToast({ message: err instanceof Error ? err.message : 'Failed to save date/time', type: 'error' });
         } finally {
           setUpdatingName(null);
         }
@@ -265,9 +263,10 @@ export default function CrawlerSettingsScreen() {
     try {
       const encoded = encodeDailyTime(h, m);
       await updateSchedule(crawlerName, encoded, currentIsActive);
+      showToast({ message: `Crawl time updated to ${timeString}`, type: 'success' });
     } catch (err) {
       console.error('Error updating web time:', err);
-      showAlert('Update Failed', err instanceof Error ? err.message : String(err));
+      showToast({ message: err instanceof Error ? err.message : 'Failed to save crawl time', type: 'error' });
     } finally {
       setUpdatingName(null);
     }
@@ -284,9 +283,10 @@ export default function CrawlerSettingsScreen() {
     try {
       const encoded = encodeDateTime(date);
       await updateSchedule(crawlerName, encoded, currentIsActive);
+      showToast({ message: `Crawl schedule updated`, type: 'success' });
     } catch (err) {
       console.error('Error updating web datetime:', err);
-      showAlert('Update Failed', err instanceof Error ? err.message : String(err));
+      showToast({ message: err instanceof Error ? err.message : 'Failed to save crawl schedule', type: 'error' });
     } finally {
       setUpdatingName(null);
     }

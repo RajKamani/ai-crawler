@@ -16,6 +16,7 @@ import { supabase } from '../utils/supabase';
 import { API_BASE_URL } from '../constants/Config';
 import { useTheme } from '../hooks/useTheme';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { ToastProvider } from '../context/ToastContext';
 
 // Global Fetch Interceptor to inject Supabase Auth JWT Bearer token dynamically
 const originalFetch = global.fetch;
@@ -116,7 +117,9 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <RootLayoutNav />
+        <ToastProvider>
+          <RootLayoutNav />
+        </ToastProvider>
       </ThemeProvider>
     </AuthProvider>
   );
