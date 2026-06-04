@@ -10,7 +10,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { API_BASE_URL, AUTH_HEADER } from '@/constants/Config';
 import { PostCard, PostType } from '@/components/PostCard';
 import { GitHubRepoCard } from '@/components/GitHubRepoCard';
-import { SummarizeSheet } from '@/components/SummarizeSheet';
 import { useTheme } from '@/hooks/useTheme';
 import { useToast } from '@/context/ToastContext';
 
@@ -20,12 +19,6 @@ export default function BookmarksScreen() {
   const [posts, setPosts] = useState<PostType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // AI Summary Sheet states
-  const [sheetVisible, setSheetVisible] = useState(false);
-  const [activePostTitle, setActivePostTitle] = useState('');
-  const [activeSummary, setActiveSummary] = useState<string | null>(null);
-  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
 
   useEffect(() => {
     fetchBookmarks();
@@ -81,46 +74,11 @@ export default function BookmarksScreen() {
     }
   };
 
-  const handleSummarize = async (postId: string) => {
-    const post = posts.find((p) => p.id === postId);
-    if (!post) return;
-
-    setActivePostTitle(post.title);
-    setSheetVisible(true);
-    setIsSummaryLoading(true);
-    setActiveSummary(null);
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/summary`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...AUTH_HEADER,
-        },
-        body: JSON.stringify({ post_id: postId }),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setActiveSummary(data.summary);
-      } else {
-        setActiveSummary('Failed to retrieve summary.');
-        showToast({ message: 'Failed to generate AI summary', type: 'error' });
-      }
-    } catch (error) {
-      console.error('Error summarization:', error);
-      setActiveSummary('Network error occurred during AI summary.');
-      showToast({ message: 'Failed to generate AI summary', type: 'error' });
-    } finally {
-      setIsSummaryLoading(false);
-    }
-  };
-
   const renderItem = useCallback(({ item }: { item: PostType }) => {
     if (item.sources?.type === 'github') {
       return (
         <GitHubRepoCard
           post={item}
-          onSummarize={handleSummarize}
           onToggleBookmark={handleToggleBookmark}
         />
       );
@@ -128,7 +86,6 @@ export default function BookmarksScreen() {
     return (
       <PostCard
         post={item}
-        onSummarize={handleSummarize}
         onToggleBookmark={handleToggleBookmark}
       />
     );
@@ -154,15 +111,6 @@ export default function BookmarksScreen() {
             </View>
           )
         }
-      />
-
-      {/* AI Summary Sheet */}
-      <SummarizeSheet
-        isVisible={sheetVisible}
-        onClose={() => setSheetVisible(false)}
-        postTitle={activePostTitle}
-        summary={activeSummary}
-        isLoading={isSummaryLoading}
       />
     </View>
   );

@@ -115,30 +115,6 @@ export default function RedditScreen() {
     }
   };
 
-  const handleSummarize = async (postId: string): Promise<string | null> => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/summary`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...AUTH_HEADER,
-        },
-        body: JSON.stringify({ post_id: postId }),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setPosts((prev) =>
-          prev.map((p) => (p.id === postId ? { ...p, ai_summary: data.summary } : p))
-        );
-        return data.summary;
-      }
-      return null;
-    } catch (error) {
-      console.error('Error summarization:', error);
-      return null;
-    }
-  };
-
   const renderItem = useCallback(
     ({ item }: { item: PostType }) => {
       if (containerHeight === 0) return null;
@@ -147,7 +123,6 @@ export default function RedditScreen() {
           post={item}
           containerHeight={containerHeight}
           onToggleBookmark={handleToggleBookmark}
-          onSummarize={handleSummarize}
           isViewed={viewedIds.has(item.id)}
         />
       );

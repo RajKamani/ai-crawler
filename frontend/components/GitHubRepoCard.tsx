@@ -3,19 +3,19 @@ import { View, Text, StyleSheet, Pressable, Linking } from 'react-native';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { PostType } from './PostCard';
 import { useTheme } from '@/hooks/useTheme';
+import { useSummary } from '@/context/SummaryContext';
 
 interface GitHubRepoCardProps {
   post: PostType;
-  onSummarize: (postId: string) => void;
   onToggleBookmark: (postId: string, isBookmarked: boolean) => void;
 }
 
 export const GitHubRepoCard: React.FC<GitHubRepoCardProps> = ({
   post,
-  onSummarize,
   onToggleBookmark,
 }) => {
   const colors = useTheme();
+  const { requestSummary } = useSummary();
   const isDark = colors.isDark;
   const repoData = post.raw_data || {};
   const stars = repoData.stars ?? 0;
@@ -125,7 +125,7 @@ export const GitHubRepoCard: React.FC<GitHubRepoCardProps> = ({
 
         <View style={styles.rightActions}>
           {/* AI Summary Button */}
-          <Pressable style={[styles.summarizeBtn, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]} onPress={() => onSummarize(post.id)}>
+          <Pressable style={[styles.summarizeBtn, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]} onPress={() => requestSummary(post.id, post.title, post.ai_summary)}>
             <Ionicons name="sparkles" size={14} color={colors.primary} />
             <Text style={[styles.summarizeText, { color: colors.primary }]}>AI Summary</Text>
           </Pressable>

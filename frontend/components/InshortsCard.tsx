@@ -15,13 +15,13 @@ import { PostType } from './PostCard';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { useTheme } from '@/hooks/useTheme';
 import { useToast } from '@/context/ToastContext';
+import { useSummary } from '@/context/SummaryContext';
 
 
 interface InshortsCardProps {
   post: PostType;
   containerHeight: number;
   onToggleBookmark: (postId: string, isBookmarked: boolean) => void;
-  onSummarize: (postId: string) => Promise<string | null>;
   isViewed?: boolean;
 }
 
@@ -63,15 +63,12 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
   post,
   containerHeight,
   onToggleBookmark,
-  onSummarize,
   isViewed = false,
 }) => {
   const colors = useTheme();
   const isDark = colors.isDark;
   const { showToast } = useToast();
-  const [showSummary, setShowSummary] = useState(false);
-  const [summaryText, setSummaryText] = useState<string | null>(post.ai_summary || null);
-  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+  const { requestSummary } = useSummary();
   const [similarExpanded, setSimilarExpanded] = useState(false);
 
   const sourceType = post.sources?.type || 'blog';
@@ -113,14 +110,14 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
       case 'github':
         return {
           accentColor: isDark ? '#68d3fc' : '#00647f',
-          icon: 'github',
           placeholderBg: isDark ? '#2c2b2b' : '#f0eded',
+          icon: 'github',
         };
       case 'blog':
       default:
         return {
-          accentColor: isDark ? '#ff4f4f' : '#bc000a',
-          icon: 'rss',
+          accentColor: colors.primary,
+          icon: 'document-text',
           placeholderBg: isDark ? '#2c2b2b' : '#f0eded',
         };
     }
@@ -128,14 +125,13 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
 
   const theme = getSourceStyles();
 
+  // Share post action
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `${post.title}\n\n${post.content || ''}\n\nRead more at: ${post.url}`,
         title: post.title,
-        url: post.url,
+        message: `${post.title}\n\nRead more: ${post.url}`,
       });
-      showToast({ message: 'Story link shared', type: 'success' });
     } catch (error: any) {
       console.error('Error sharing post:', error);
       showToast({ message: 'Failed to share story', type: 'error' });
@@ -143,29 +139,7 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
   };
 
   const handleToggleSummary = async () => {
-    if (showSummary) {
-      setShowSummary(false);
-      return;
-    }
-
-    setShowSummary(true);
-    if (!summaryText) {
-      setIsLoadingSummary(true);
-      try {
-        const fetched = await onSummarize(post.id);
-        if (fetched) {
-          setSummaryText(fetched);
-        } else {
-          setSummaryText('Unable to retrieve AI summary.');
-          showToast({ message: 'Failed to generate AI aggregate takeaways', type: 'error' });
-        }
-      } catch (err) {
-        setSummaryText('Error loading AI summary.');
-        showToast({ message: 'Failed to generate AI aggregate takeaways', type: 'error' });
-      } finally {
-        setIsLoadingSummary(false);
-      }
-    }
+    requestSummary(post.id, post.title, post.ai_summary);
   };
 
   // Calculate layout heights based on containerHeight
@@ -264,131 +238,106 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
             },
           } as any)}
         >
-          {showSummary ? (
-            <View style={styles.summaryArea}>
-              <View style={styles.summaryTitleRow}>
-                <Ionicons name="sparkles" size={14} color={colors.primary} />
-                <Text style={[styles.summaryTitle, { color: colors.primary }]}>AI Bullet Summary</Text>
+          <View>
+            {post.sources?.type === 'github' && post.raw_data && (
+              <View style={[styles.githubStatsRow, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
+                <View style={styles.gitStat}>
+                  <Ionicons name="star" size={14} color={colors.primary} />
+                  <Text style={[styles.gitStatText, { color: colors.text }]}>{(post.raw_data.stars ?? 0).toLocaleString()} stars</Text>
+                </View>
+                <View style={styles.gitStat}>
+                  <FontAwesome5 name="code-branch" size={12} color={colors.text} />
+                  <Text style={[styles.gitStatText, { color: colors.text }]}>{(post.raw_data.forks ?? 0).toLocaleString()} forks</Text>
+                </View>
+                <View style={styles.gitStat}>
+                  <Ionicons name="code-slash" size={14} color={theme.accentColor} />
+                  <Text style={[styles.gitStatText, { color: colors.text }]}>{post.raw_data.language ?? 'Unknown'}</Text>
+                </View>
               </View>
-              {isLoadingSummary ? (
-                <View style={styles.loaderContainer}>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                  <Text style={[styles.loaderText, { color: colors.text }]}>Llama 3 summarizing...</Text>
-                </View>
-              ) : (
-                <View style={styles.bulletsContainer}>
-                  {summaryText ? (
-                    <MarkdownRenderer content={summaryText} />
-                  ) : (
-                    <Text style={[styles.summaryText, { color: colors.text }]}>No summary available.</Text>
-                  )}
-                </View>
-              )}
-            </View>
-          ) : (
-            <View>
-              {post.sources?.type === 'github' && post.raw_data && (
-                <View style={[styles.githubStatsRow, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
-                  <View style={styles.gitStat}>
-                    <Ionicons name="star" size={14} color={colors.primary} />
-                    <Text style={[styles.gitStatText, { color: colors.text }]}>{(post.raw_data.stars ?? 0).toLocaleString()} stars</Text>
-                  </View>
-                  <View style={styles.gitStat}>
-                    <FontAwesome5 name="code-branch" size={12} color={colors.text} />
-                    <Text style={[styles.gitStatText, { color: colors.text }]}>{(post.raw_data.forks ?? 0).toLocaleString()} forks</Text>
-                  </View>
-                  <View style={styles.gitStat}>
-                    <Ionicons name="code-slash" size={14} color={theme.accentColor} />
-                    <Text style={[styles.gitStatText, { color: colors.text }]}>{post.raw_data.language ?? 'Unknown'}</Text>
-                  </View>
-                </View>
-              )}
+            )}
 
-              {post.sources?.type === 'reddit' && post.raw_data && (
-                <View style={[styles.redditStatsRow, { backgroundColor: isDark ? '#2b1b1b' : '#fcf0ef', borderColor: theme.accentColor }]}>
-                  <View style={styles.redditStat}>
-                    <Ionicons name="arrow-up" size={14} color={theme.accentColor} />
-                    <Text style={[styles.redditStatText, { color: theme.accentColor }]}>{(post.raw_data.score ?? 0).toLocaleString()} upvotes</Text>
-                  </View>
-                  <View style={styles.redditStat}>
-                    <Ionicons name="chatbox-ellipses" size={14} color={colors.text} />
-                    <Text style={[styles.redditStatText, { color: theme.accentColor }]}>{(post.raw_data.num_comments ?? 0).toLocaleString()} comments</Text>
-                  </View>
+            {post.sources?.type === 'reddit' && post.raw_data && (
+              <View style={[styles.redditStatsRow, { backgroundColor: isDark ? '#2b1b1b' : '#fcf0ef', borderColor: theme.accentColor }]}>
+                <View style={styles.redditStat}>
+                  <Ionicons name="arrow-up" size={14} color={theme.accentColor} />
+                  <Text style={[styles.redditStatText, { color: theme.accentColor }]}>{(post.raw_data.score ?? 0).toLocaleString()} upvotes</Text>
                 </View>
-              )}
+                <View style={styles.redditStat}>
+                  <Ionicons name="chatbox-ellipses" size={14} color={colors.text} />
+                  <Text style={[styles.redditStatText, { color: theme.accentColor }]}>{(post.raw_data.num_comments ?? 0).toLocaleString()} comments</Text>
+                </View>
+              </View>
+            )}
 
-              <Text style={[styles.bodyText, { color: colors.text }]}>
-                {post.content ? post.content.replace(/\n+/g, '\n\n') : 'No content preview available.'}
-              </Text>
+            <Text style={[styles.bodyText, { color: colors.text }]}>
+              {post.content ? post.content.replace(/\n+/g, '\n\n') : 'No content preview available.'}
+            </Text>
 
-              {post.sources?.type === 'reddit' && post.raw_data?.comments && post.raw_data.comments.length > 0 && (
-                <View style={[styles.commentsContainer, { borderTopColor: colors.border }]}>
-                  <Text style={[styles.commentsHeader, { color: theme.accentColor }]}>TOP COMMENTS</Text>
-                  {post.raw_data.comments.map((comment: any, idx: number) => (
-                    <View key={idx} style={[styles.commentItem, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
-                      <View style={styles.commentMeta}>
-                        <Text style={[styles.commentAuthor, { color: theme.accentColor }]}>u/{comment.author}</Text>
-                        <Text style={[styles.commentScore, { color: colors.tabIconDefault }]}>• {comment.score} upvotes</Text>
-                      </View>
-                      <Text style={[styles.commentBody, { color: colors.text }]}>{comment.body}</Text>
+            {post.sources?.type === 'reddit' && post.raw_data?.comments && post.raw_data.comments.length > 0 && (
+              <View style={[styles.commentsContainer, { borderTopColor: colors.border }]}>
+                <Text style={[styles.commentsHeader, { color: theme.accentColor }]}>TOP COMMENTS</Text>
+                {post.raw_data.comments.map((comment: any, idx: number) => (
+                  <View key={idx} style={[styles.commentItem, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
+                    <View style={styles.commentMeta}>
+                      <Text style={[styles.commentAuthor, { color: theme.accentColor }]}>u/{comment.author}</Text>
+                      <Text style={[styles.commentScore, { color: colors.tabIconDefault }]}>• {(comment.score ?? 0)} points</Text>
                     </View>
-                  ))}
-                </View>
-              )}
+                    <Text style={[styles.commentBody, { color: colors.text }]}>{comment.body}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
 
-              {post.similar_posts && post.similar_posts.length > 0 && (
-                <View style={[styles.similarContainer, { borderTopColor: colors.border }]}>
-                  <Pressable
-                    style={styles.similarHeaderRow}
-                    onPress={() => setSimilarExpanded(!similarExpanded)}
-                  >
-                    <Text style={[styles.similarHeader, { color: colors.primary }]}>
-                      ALSO COVERED IN ({post.similar_posts.length})
-                    </Text>
-                    <Ionicons
-                      name={similarExpanded ? 'chevron-up' : 'chevron-down'}
-                      size={14}
-                      color={colors.primary}
-                    />
-                  </Pressable>
-                  {similarExpanded &&
-                    post.similar_posts.map((sim: any, idx: number) => (
-                      <Pressable
-                        key={idx}
-                        style={[
-                          styles.similarItem,
-                          { backgroundColor: colors.surfaceContainer, borderColor: colors.border },
-                        ]}
-                        onPress={() => Linking.openURL(sim.url)}
-                      >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 8 }}>
-                          <Text style={[styles.similarTitle, { color: colors.text }]} numberOfLines={2}>
-                            {sim.title}
-                          </Text>
-                          <Ionicons name="chevron-forward-outline" size={14} color={colors.primary} />
-                        </View>
-                        <View style={styles.similarMeta}>
-                          <FontAwesome5
-                            name={
-                              sim.source_type === 'reddit'
-                                ? 'reddit'
-                                : sim.source_type === 'github'
-                                ? 'github'
-                                : 'rss'
-                            }
-                            size={10}
-                            color={colors.tabIconDefault}
-                          />
-                          <Text style={[styles.similarSourceText, { color: colors.tabIconDefault }]}>
-                            {sim.source_name}
-                          </Text>
-                        </View>
-                      </Pressable>
-                    ))}
-                </View>
-              )}
-            </View>
-          )}
+            {/* Similar Posts Section */}
+            {post.similar_posts && post.similar_posts.length > 0 && (
+              <View style={[styles.similarContainer, { borderTopColor: colors.border }]}>
+                <Pressable
+                  style={styles.similarHeaderRow}
+                  onPress={() => setSimilarExpanded(!similarExpanded)}
+                >
+                  <Text style={[styles.similarHeader, { color: colors.text }]}>
+                    RELATED COVERAGE ({post.similar_posts.length})
+                  </Text>
+                  <Ionicons
+                    name={similarExpanded ? 'chevron-up' : 'chevron-down'}
+                    size={16}
+                    color={colors.text}
+                  />
+                </Pressable>
+                {similarExpanded &&
+                  post.similar_posts.map((sim: any, idx: number) => (
+                    <Pressable
+                      key={idx}
+                      style={[
+                        styles.similarItem,
+                        { backgroundColor: colors.surfaceContainer, borderColor: colors.border },
+                      ]}
+                      onPress={() => Linking.openURL(sim.url)}
+                    >
+                      <Text style={[styles.similarTitle, { color: colors.text }]} numberOfLines={2}>
+                        {sim.title}
+                      </Text>
+                      <View style={styles.similarMeta}>
+                        <Ionicons
+                          name={
+                            sim.source_type === 'reddit'
+                              ? 'logo-reddit'
+                              : sim.source_type === 'github'
+                              ? 'logo-github'
+                              : 'logo-rss'
+                          }
+                          size={10}
+                          color={colors.tabIconDefault}
+                        />
+                        <Text style={[styles.similarSourceText, { color: colors.tabIconDefault }]}>
+                          {sim.source_name}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  ))}
+              </View>
+            )}
+          </View>
         </ScrollView>
 
         {/* Floating Sparkle Action button inside the text card */}
@@ -396,17 +345,16 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
           style={[
             styles.actionButton,
             { borderColor: colors.border },
-            showSummary ? { backgroundColor: colors.primary, borderColor: colors.primary } : null,
           ]}
           onPress={handleToggleSummary}
         >
           <Ionicons
             name="sparkles"
             size={15}
-            color={showSummary ? '#FFFFFF' : colors.text}
+            color={colors.text}
           />
-          <Text style={[styles.actionBtnText, { color: showSummary ? '#FFFFFF' : colors.text }]}>
-            {showSummary ? 'Show Original' : 'AI Aggregated takeaways'}
+          <Text style={[styles.actionBtnText, { color: colors.text }]}>
+            AI Aggregated takeaways
           </Text>
         </Pressable>
       </View>

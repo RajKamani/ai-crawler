@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ActivityIndicator, View } from 'react-native';
+import mobileAds from 'react-native-google-mobile-ads';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { AuthProvider, useAuth } from '../context/AuthContext';
@@ -17,6 +18,7 @@ import { API_BASE_URL } from '../constants/Config';
 import { useTheme } from '../hooks/useTheme';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { ToastProvider } from '../context/ToastContext';
+import { SummaryProvider } from '../context/SummaryContext';
 
 // Global Fetch Interceptor to inject Supabase Auth JWT Bearer token dynamically
 const originalFetch = global.fetch;
@@ -118,7 +120,9 @@ export default function RootLayout() {
     <AuthProvider>
       <ThemeProvider>
         <ToastProvider>
-          <RootLayoutNav />
+          <SummaryProvider>
+            <RootLayoutNav />
+          </SummaryProvider>
         </ToastProvider>
       </ThemeProvider>
     </AuthProvider>
@@ -132,6 +136,17 @@ function RootLayoutNav() {
 
   // Initialize push notification settings & listeners on app mount
   usePushNotifications();
+
+  useEffect(() => {
+    mobileAds()
+      .initialize()
+      .then(statuses => {
+        console.log('[AdMob] Init success statuses:', statuses);
+      })
+      .catch(err => {
+        console.warn('[AdMob] Init failed:', err);
+      });
+  }, []);
 
   useEffect(() => {
     if (session?.user) {

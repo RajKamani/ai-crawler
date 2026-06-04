@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, Linking, Image } from 'react-native';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
+import { useSummary } from '@/context/SummaryContext';
 
 export interface PostType {
   id: string;
@@ -26,21 +27,7 @@ export interface PostType {
     source_name: string;
     source_type: string;
   }[];
-  raw_data?: {
-    stars?: number;
-    forks?: number;
-    language?: string;
-    topics?: string[];
-    homepage?: string;
-    score?: number;
-    num_comments?: number;
-    upvote_ratio?: number;
-    comments?: {
-      author: string;
-      body: string;
-      score: number;
-    }[];
-  };
+  raw_data?: any;
 }
 
 const getMediaUrl = (post: PostType) => {
@@ -79,16 +66,15 @@ const getMediaUrl = (post: PostType) => {
 
 interface PostCardProps {
   post: PostType;
-  onSummarize: (postId: string) => void;
   onToggleBookmark: (postId: string, isBookmarked: boolean) => void;
 }
 
 export const PostCard: React.FC<PostCardProps> = ({
   post,
-  onSummarize,
   onToggleBookmark,
 }) => {
   const colors = useTheme();
+  const { requestSummary } = useSummary();
   const isDark = colors.isDark;
   const sourceType = post.sources?.type || 'blog';
   const sourceName = post.sources?.name || post.author || 'Blog';
@@ -202,7 +188,7 @@ export const PostCard: React.FC<PostCardProps> = ({
           {/* AI Summarize Button */}
           <Pressable
             style={[styles.summarizeBtn, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}
-            onPress={() => onSummarize(post.id)}
+            onPress={() => requestSummary(post.id, post.title, post.ai_summary)}
           >
             <Ionicons name="sparkles" size={14} color={theme.accentColor} />
             <Text style={[styles.summarizeText, { color: theme.accentColor }]}>

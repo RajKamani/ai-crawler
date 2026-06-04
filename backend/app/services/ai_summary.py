@@ -61,15 +61,21 @@ class AISummaryService:
     async def _generate_groq_summary(self, title: str, content: str) -> str:
         """Generate summary using Groq chat completion API"""
         prompt = (
-            f"Please summarize the following article/thread.\n"
+            f"Analyze and summarize this technical article/thread:\n"
             f"Title: {title}\n"
             f"Content: {content[:8000]}\n\n"
-            f"Guidelines:\n"
-            f"- Output a concise bullet-point summary (maximum 3-4 bullet points).\n"
-            f"- Focus on key takeaways: what was built, what tool was introduced, or what the core idea is.\n"
-            f"- Format using clean Markdown with bold keywords for highlights.\n"
-            f"- Keep it professional and strictly objective. No introductions or explanations outside the bullet points.\n"
-            f"- Avoid AI writing cliches and buzzwords. Do not use words like 'delve', 'tapestry', 'leverage', 'utilize', 'robust', 'streamline', 'seamless', 'pivotal', 'testament', 'revolutionize', 'groundbreaking', 'furthermore', 'moreover', 'in conclusion'. Use direct, simple, and plain words instead (e.g. use 'use' instead of 'leverage' or 'utilize', 'reliable' instead of 'robust', 'important' or 'key' instead of 'pivotal')."
+            f"Please output a detailed technical breakdown structured exactly as follows:\n\n"
+            f"### 📊 BRIEF SYNTHESIS\n"
+            f"[A 1-2 sentence high-level executive summary of what this is and why it matters.]\n\n"
+            f"### 💡 KEY TAKEAWAYS\n"
+            f"- [First technical point, explaining the architecture, tool, or core announcement. Bold key terms.]\n"
+            f"- [Second technical point, explaining how it works or what performance/metric changes it brings.]\n"
+            f"- [Third technical point, detailing constraints, benchmarks, or requirements.]\n\n"
+            f"### 🛠️ DEVELOPER IMPACT\n"
+            f"[What library, repository, or tool can a developer use to try this? Or how should an engineer adapt their workflow for this? Keep it highly practical.]\n\n"
+            f"Rules:\n"
+            f"- Avoid all AI buzzwords ('delve', 'tapestry', 'leverage', 'seamless', 'pivotal'). Use simple direct terms.\n"
+            f"- Strictly objective, technical, and concise. No conversational filler or introductory sentences."
         )
 
         try:
@@ -80,7 +86,7 @@ class AISummaryService:
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.3,
-                max_tokens=500
+                max_tokens=800
             )
             return completion.choices[0].message.content.strip()
         except Exception as e:
@@ -94,7 +100,7 @@ class AISummaryService:
                         {"role": "user", "content": prompt}
                     ],
                     temperature=0.3,
-                    max_tokens=500
+                    max_tokens=800
                 )
                 return completion.choices[0].message.content.strip()
             except Exception as fe:
