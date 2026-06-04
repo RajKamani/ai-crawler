@@ -5,20 +5,19 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ActivityIndicator, View } from 'react-native';
-import mobileAds from 'react-native-google-mobile-ads';
+import { ActivityIndicator, View, Platform } from 'react-native';
 
 import { useColorScheme } from '@/components/useColorScheme';
-import { AuthProvider, useAuth } from '../context/AuthContext';
-import { ThemeProvider, useThemeContext } from '../context/ThemeContext';
-import { AuthScreen } from '../components/AuthScreen';
-import { OnboardingScreen } from '../components/OnboardingScreen';
-import { supabase } from '../utils/supabase';
-import { API_BASE_URL } from '../constants/Config';
-import { useTheme } from '../hooks/useTheme';
-import { usePushNotifications } from '../hooks/usePushNotifications';
-import { ToastProvider } from '../context/ToastContext';
-import { SummaryProvider } from '../context/SummaryContext';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { ThemeProvider, useThemeContext } from '@/context/ThemeContext';
+import { AuthScreen } from '@/components/AuthScreen';
+import { OnboardingScreen } from '@/components/OnboardingScreen';
+import { supabase } from '@/utils/supabase';
+import { API_BASE_URL } from '@/constants/Config';
+import { useTheme } from '@/hooks/useTheme';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { ToastProvider } from '@/context/ToastContext';
+import { SummaryProvider } from '@/context/SummaryContext';
 
 // Global Fetch Interceptor to inject Supabase Auth JWT Bearer token dynamically
 const originalFetch = global.fetch;
@@ -138,14 +137,24 @@ function RootLayoutNav() {
   usePushNotifications();
 
   useEffect(() => {
-    mobileAds()
-      .initialize()
-      .then(statuses => {
-        console.log('[AdMob] Init success statuses:', statuses);
-      })
-      .catch(err => {
-        console.warn('[AdMob] Init failed:', err);
-      });
+    if (Platform.OS !== 'web') {
+      try {
+        const googleAdsModule = require('react-native-google-mobile-ads');
+        const mobileAds = googleAdsModule ? (googleAdsModule.default || googleAdsModule) : null;
+        if (mobileAds) {
+          mobileAds()
+            .initialize()
+            .then((statuses: any) => {
+              console.log('[AdMob] Init success statuses:', statuses);
+            })
+            .catch((err: any) => {
+              console.warn('[AdMob] Init failed:', err);
+            });
+        }
+      } catch (err) {
+        console.warn('[AdMob] react-native-google-mobile-ads not available (Expo Go):', err);
+      }
+    }
   }, []);
 
   useEffect(() => {

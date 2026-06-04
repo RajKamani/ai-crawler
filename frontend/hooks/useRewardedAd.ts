@@ -1,20 +1,43 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Platform } from 'react-native';
-import { RewardedAd, RewardedAdEventType, TestIds } from 'react-native-google-mobile-ads';
+
+let RewardedAd: any;
+let RewardedAdEventType: any;
+let TestIds: any = { REWARDED: 'test-ad-unit-id' };
+
+if (Platform.OS !== 'web') {
+  try {
+    const GoogleMobileAds = require('react-native-google-mobile-ads');
+    RewardedAd = GoogleMobileAds.RewardedAd;
+    RewardedAdEventType = GoogleMobileAds.RewardedAdEventType;
+    TestIds = GoogleMobileAds.TestIds;
+  } catch (e) {
+    console.warn('Google Mobile Ads could not be loaded', e);
+  }
+} else {
+  RewardedAdEventType = { LOADED: 'LOADED', EARNED_REWARD: 'EARNED_REWARD' };
+}
 
 // AdMob Test Unit IDs
 const adUnitId = Platform.select({
   android: __DEV__ ? TestIds.REWARDED : 'ca-app-pub-3940256099942544~3347511713', // Replace with real Android Ad Unit ID in prod
   ios: __DEV__ ? TestIds.REWARDED : 'ca-app-pub-3940256099942544~1458002511',     // Replace with real iOS Ad Unit ID in prod
+  default: TestIds.REWARDED,
 }) || TestIds.REWARDED;
 
 export function useRewardedAd(onRewardedComplete: () => void, onAdFailed: (error: string) => void) {
   const [isLoaded, setIsLoaded] = useState(false);
-  const rewardedAdRef = useRef<RewardedAd | null>(null);
+  const rewardedAdRef = useRef<any>(null);
 
   const loadAd = useCallback(() => {
     setIsLoaded(false);
     
+    if (Platform.OS === 'web' || !RewardedAd) {
+      // Mock ad for web
+      setIsLoaded(true);
+      return () => {};
+    }
+
     // Create new RewardedAd instance
     const rewardedAd = RewardedAd.createForAdRequest(adUnitId, {
       requestNonPersonalizedAdsOnly: true,
@@ -39,8 +62,6 @@ export function useRewardedAd(onRewardedComplete: () => void, onAdFailed: (error
       }
     );
 
-    rewardedAd.addAdEventListener(RewardedAdEventType.LOADED, () => {});
-
     // Catch ad loading error
     const unsubscribeFailed = rewardedAd.addAdEventListener(
       RewardedAdEventType.LOADED,
@@ -55,6 +76,8 @@ export function useRewardedAd(onRewardedComplete: () => void, onAdFailed: (error
     return () => {
       unsubscribeLoaded();
       unsubscribeEarned();
+      unsubscribeClosed();
+      unsubscribeFailed();
     };
   }, [onRewardedComplete]);
 
@@ -66,6 +89,11 @@ export function useRewardedAd(onRewardedComplete: () => void, onAdFailed: (error
   }, [loadAd]);
 
   const showAd = useCallback(() => {
+    if (Platform.OS === 'web' || !RewardedAd) {
+      onRewardedComplete();
+      return;
+    }
+
     if (isLoaded && rewardedAdRef.current) {
       try {
         rewardedAdRef.current.show();
@@ -77,7 +105,7 @@ export function useRewardedAd(onRewardedComplete: () => void, onAdFailed: (error
       onAdFailed('Ad not loaded yet, please try again.');
       loadAd(); // Force trigger reload
     }
-  }, [isLoaded, loadAd, onAdFailed]);
+  }, [isLoaded, loadAd, onAdFailed, onRewardedComplete]);
 
   return { showAd, isLoaded, reloadAd: loadAd };
 }
