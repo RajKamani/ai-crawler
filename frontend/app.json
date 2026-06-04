@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "frontend",
+    "name": "Dev Pulse AI",
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "frontend",
+    "scheme": "devpulseai",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
@@ -17,7 +17,7 @@
     "android": {
       "package": "com.rajkamani.aicrawler",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#131313",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -34,9 +34,13 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/splash-icon-light.png",
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#fcf9f8",
+          "dark": {
+            "image": "./assets/images/splash-icon-dark.png",
+            "backgroundColor": "#131313"
+          }
         }
       ],
       "expo-font",
