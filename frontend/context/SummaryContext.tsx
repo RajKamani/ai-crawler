@@ -8,6 +8,8 @@ import { useRewardedAd } from '@/hooks/useRewardedAd';
 
 interface SummaryContextType {
   requestSummary: (postId: string, postTitle: string, initialSummaryText?: string | null) => Promise<void>;
+  allowanceRemaining: number | null;
+  fetchAllowance: () => Promise<void>;
 }
 
 const SummaryContext = createContext<SummaryContextType | undefined>(undefined);
@@ -22,6 +24,7 @@ export const SummaryProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [currentPostTitle, setCurrentPostTitle] = useState('');
   const [summaryText, setSummaryText] = useState<string | null>(null);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+  const [allowanceRemaining, setAllowanceRemaining] = useState<number | null>(null);
 
   // Auth headers helper
   const getAuthHeaders = () => {
@@ -30,6 +33,27 @@ export const SummaryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       'Authorization': `Bearer ${session?.access_token || 'mock-user-session-token-12345'}`,
     };
   };
+
+  const fetchAllowance = async () => {
+    try {
+      const allowanceRes = await fetch(`${API_BASE_URL}/summary/allowance`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
+      if (allowanceRes.ok) {
+        const allowance = await allowanceRes.json();
+        setAllowanceRemaining(allowance.total_remaining);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch summary allowance:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (session) {
+      fetchAllowance();
+    }
+  }, [session]);
 
   // Callback when rewarded ad finishes
   const onRewardedComplete = async () => {
@@ -48,6 +72,7 @@ export const SummaryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (!claimRes.ok) {
         throw new Error('Failed to claim credit on backend');
       }
+      fetchAllowance();
     } catch (err) {
       console.warn('[Ad Payout] Error updating allowance, proceeding anyway:', err);
     }
@@ -78,6 +103,7 @@ export const SummaryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const data = await res.json();
       if (res.ok) {
         setSummaryText(data.summary);
+        fetchAllowance();
       } else {
         setSummaryText('Unable to retrieve AI summary. Please check your daily credit limit.');
         showToast({ message: data.detail || 'Summary request failed', type: 'error' });
@@ -103,37 +129,22 @@ export const SummaryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    // 2. Fetch allowance remaining
-    try {
-      const allowanceRes = await fetch(`${API_BASE_URL}/summary/allowance`, {
-        method: 'GET',
-        headers: getAuthHeaders(),
-      });
-      
-      if (!allowanceRes.ok) {
-        throw new Error('Failed to fetch allowance');
-      }
-      
-      const allowance = await allowanceRes.json();
-      
-      if (allowance.total_remaining > 0) {
-        // We have quota - show sheet and fetch
-        setIsSheetVisible(true);
-        await fetchSummary(postId);
-      } else {
-        // Quota exhausted - prompt ad
-        reloadAd(); // Preload ad if not already preloaded
-        setIsAdGateVisible(true);
-      }
-    } catch (err) {
-      // Fallback: Try showing sheet anyway to prevent lockouts on minor network glitches
+    // 2. Use cached allowance state for instant UI responsiveness
+    const hasQuota = allowanceRemaining === null || allowanceRemaining > 0;
+
+    if (hasQuota) {
+      // We have quota - show sheet and fetch
       setIsSheetVisible(true);
       await fetchSummary(postId);
+    } else {
+      // Quota exhausted - prompt ad
+      reloadAd(); // Preload ad if not already preloaded
+      setIsAdGateVisible(true);
     }
   };
 
   return (
-    <SummaryContext.Provider value={{ requestSummary }}>
+    <SummaryContext.Provider value={{ requestSummary, allowanceRemaining, fetchAllowance }}>
       {children}
       
       {/* Centralized SummarizeSheet Bottom Drawer */}

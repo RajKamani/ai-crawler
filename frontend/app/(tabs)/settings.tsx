@@ -8,6 +8,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useThemeContext } from '../../context/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
+import { Header } from '@/components/Header';
 
 interface SettingsMenuItemProps {
   icon: string;
@@ -83,10 +84,10 @@ export default function SettingsHubScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>SETTINGS</Text>
-        <Text style={[styles.headerSubtitle, { color: colors.primary }]}>CONFIGURE FEED SOURCES & SCHEDULES</Text>
-      </View>
+      <Header
+        title="SETTINGS"
+        subtitle="CONFIGURE FEED SOURCES & SCHEDULES"
+      />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Profile Card / Dynamic user info */}
@@ -237,26 +238,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fcf9f8',
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1c1b1b',
-    backgroundColor: '#fcf9f8',
-  },
-  headerTitle: {
-    color: '#1c1b1b',
-    fontSize: 22,
-    fontWeight: '700',
-    fontFamily: 'SpaceMono',
-  },
-  headerSubtitle: {
-    color: '#bc000a',
-    fontSize: 12,
-    fontWeight: '700',
-    fontFamily: 'SpaceMono',
-    marginTop: 2,
-  },
+
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 20,

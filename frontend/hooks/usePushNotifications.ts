@@ -74,42 +74,46 @@ export const usePushNotifications = () => {
   const responseListener = useRef<any>(null);
 
   const registerForPushNotifications = async () => {
+    let token = null;
+
     if (isExpoGo) {
-      console.log('[Push] Remote push notifications are disabled in Expo Go. Use a development build.');
-      return null;
+      console.log('[Push] Remote push notifications are disabled in Expo Go. Falling back to mock push token.');
+      token = 'ExponentPushToken[mock-expo-go]';
     }
 
     try {
       const Device = require('expo-device');
       const Notifications = require('expo-notifications');
 
-      if (!Device.isDevice) {
-        console.log('Must use physical device for Push Notifications');
-        return null;
+      if (!token && !Device.isDevice) {
+        console.log('[Push] Running on simulator. Falling back to mock push token.');
+        token = 'ExponentPushToken[mock-simulator]';
       }
 
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
+      if (!token) {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
 
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+
+        if (finalStatus !== 'granted') {
+          console.log('Failed to get push token for push notification!');
+          return null;
+        }
+
+        // Read project ID from Expo configuration
+        const projectId =
+          Constants.easConfig?.projectId ||
+          Constants.expoConfig?.extra?.eas?.projectId;
+
+        const tokenData = await Notifications.getExpoPushTokenAsync({
+          projectId,
+        });
+        token = tokenData.data;
       }
-
-      if (finalStatus !== 'granted') {
-        console.log('Failed to get push token for push notification!');
-        return null;
-      }
-
-      // Read project ID from Expo configuration
-      const projectId =
-        Constants.easConfig?.projectId ||
-        Constants.expoConfig?.extra?.eas?.projectId;
-
-      const tokenData = await Notifications.getExpoPushTokenAsync({
-        projectId,
-      });
-      const token = tokenData.data;
 
       // Save push token to backend
       const response = await fetch(`${API_BASE_URL}/notifications/register`, {
@@ -120,7 +124,7 @@ export const usePushNotifications = () => {
         },
         body: JSON.stringify({
           expo_push_token: token,
-          device_name: Device.modelName || 'Unknown Device',
+          device_name: (Device && Device.modelName) || 'Simulator/Expo Go',
         }),
       });
 
@@ -134,25 +138,40 @@ export const usePushNotifications = () => {
       }
 
       if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('default', {
-          name: 'default',
-          importance: Notifications.AndroidImportance.MAX,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#FF231F7C',
-        });
+        try {
+          await Notifications.setNotificationChannelAsync('default', {
+            name: 'default',
+            importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#FF231F7C',
+          });
+        } catch (err) {
+          console.warn('Could not set default notification channel:', err);
+        }
       }
 
       return token;
     } catch (error) {
       console.error('Error registering for push notifications:', error);
+      // Fallback: If registration fails but we have a mock token generated, register it locally so user can toggle it on
+      if (token) {
+        setExpoPushToken(token);
+        await AsyncStorage.setItem('@expo_push_token', token);
+        await AsyncStorage.setItem('@push_enabled', 'true');
+        return token;
+      }
       return null;
     }
   };
 
   const unregisterForPushNotifications = async () => {
-    if (isExpoGo) return;
     try {
-      const Device = require('expo-device');
+      let modelName = 'Simulator/Expo Go';
+      try {
+        const Device = require('expo-device');
+        modelName = Device.modelName || 'Unknown Device';
+      } catch (e) {}
+
       const token = await AsyncStorage.getItem('@expo_push_token');
       if (token) {
         await fetch(`${API_BASE_URL}/notifications/unregister`, {
@@ -163,7 +182,7 @@ export const usePushNotifications = () => {
           },
           body: JSON.stringify({
             expo_push_token: token,
-            device_name: Device.modelName || 'Unknown Device',
+            device_name: modelName,
           }),
         });
       }
@@ -177,10 +196,6 @@ export const usePushNotifications = () => {
   };
 
   useEffect(() => {
-    if (isExpoGo) {
-      return;
-    }
-
     try {
       const Notifications = require('expo-notifications');
 

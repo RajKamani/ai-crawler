@@ -183,9 +183,11 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
             <FontAwesome5 name={theme.icon} size={11} color={theme.accentColor} />
             <Text style={[styles.sourceText, { color: theme.accentColor }]}>{sourceName}</Text>
           </View>
-          <Text style={[styles.dateText, { color: colors.text }]}>
-            {formatDate(post.published_at)}{readTime ? ` • ${readTime}` : ''}
-          </Text>
+          <View style={[styles.datePill, { backgroundColor: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.85)' }]}>
+            <Text style={[styles.dateText, { color: isDark ? '#fff' : '#1c1b1b', textShadowColor: isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 3 }]}>
+              {formatDate(post.published_at)}{readTime ? ` • ${readTime}` : ''}
+            </Text>
+          </View>
           {isViewed && (
             <View style={styles.viewedBadge}>
               <Text style={styles.viewedText}>READ</Text>
@@ -427,15 +429,20 @@ const styles = StyleSheet.create({
   dateText: {
     color: '#1c1b1b',
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: '600',
     fontFamily: 'SpaceMono',
+  },
+  datePill: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 3,
   },
   floatingActions: {
     position: 'absolute',
-    right: 16,
+    right: 12,
     bottom: 12,
-    flexDirection: 'row',
-    gap: 8,
+    flexDirection: 'column',
+    gap: 6,
   },
   floatingBtn: {
     width: 36,

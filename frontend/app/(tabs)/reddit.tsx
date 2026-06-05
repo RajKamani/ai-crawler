@@ -13,6 +13,7 @@ import { PostType } from '@/components/PostCard';
 import { InshortsCard } from '@/components/InshortsCard';
 import { useViewedPosts } from '@/hooks/useViewedPosts';
 import { useTheme } from '@/hooks/useTheme';
+import { Header } from '@/components/Header';
 
 export default function RedditScreen() {
   const colors = useTheme();
@@ -133,10 +134,10 @@ export default function RedditScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>REDDIT IDEAS</Text>
-        <Text style={[styles.headerSubtitle, { color: colors.primary }]}>CURATED TOPICS & CUSTOM SUBREDDITS</Text>
-      </View>
+      <Header
+        title="REDDIT IDEAS"
+        subtitle="CURATED TOPICS & CUSTOM SUBREDDITS"
+      />
 
       {/* Main Snapping Area */}
       <View
@@ -196,26 +197,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fcf9f8',
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1c1b1b',
-    backgroundColor: '#fcf9f8',
-  },
-  headerTitle: {
-    color: '#1c1b1b',
-    fontSize: 22,
-    fontWeight: '700',
-    fontFamily: 'SpaceMono',
-  },
-  headerSubtitle: {
-    color: '#bc000a',
-    fontSize: 12,
-    fontWeight: '700',
-    fontFamily: 'SpaceMono',
-    marginTop: 2,
-  },
+
   feedWrapper: {
     flex: 1,
     width: '100%',

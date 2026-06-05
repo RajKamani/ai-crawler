@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   View,
   Text,
-  ScrollView,
   ActivityIndicator,
   Pressable,
   Linking,
@@ -11,30 +10,35 @@ import {
   Image,
   Dimensions,
   FlatList,
+  Animated,
 } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { API_BASE_URL, AUTH_HEADER } from '@/constants/Config';
 import { PostType } from '@/components/PostCard';
-import { MarkdownRenderer } from '@/components/MarkdownRenderer';
 import { useViewedPosts } from '@/hooks/useViewedPosts';
 import { useTheme } from '@/hooks/useTheme';
 import { useToast } from '@/context/ToastContext';
+import { Header } from '@/components/Header';
 
-const { width: screenWidth } = Dimensions.get('window');
-const CARD_WIDTH = screenWidth - 40;
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+interface DigestPost extends PostType {
+  digest_takeaway?: string;
+}
 
 export default function MorningDigestScreen() {
   const colors = useTheme();
   const isDark = colors.isDark;
   const { showToast } = useToast();
-  
+
   const [digestText, setDigestText] = useState<string>('');
-  const [posts, setPosts] = useState<PostType[]>([]);
+  const [posts, setPosts] = useState<DigestPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [markedAllRead, setMarkedAllRead] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   const { viewedIds, markAsViewed } = useViewedPosts();
+  const flatListRef = useRef<FlatList>(null);
 
   const fetchDigest = async () => {
     setIsLoading(true);
@@ -47,12 +51,12 @@ export default function MorningDigestScreen() {
         setDigestText(data.digest_text || '');
         setPosts(data.posts || []);
       } else {
-        setDigestText('Failed to generate daily digest briefing. Pull down to try again.');
+        setDigestText('Failed to load your digest. Try again later.');
         showToast({ message: 'Failed to generate briefing', type: 'error' });
       }
     } catch (error) {
       console.error('Error fetching daily digest:', error);
-      setDigestText('Connection error. Could not retrieve morning brief.');
+      setDigestText('Connection error.');
       showToast({ message: 'Connection error', type: 'error' });
     } finally {
       setIsLoading(false);
@@ -89,51 +93,28 @@ export default function MorningDigestScreen() {
           prev.map((p) => (p.id === postId ? { ...p, is_bookmarked: isBookmarked } : p))
         );
         showToast({ message: 'Failed to update bookmark', type: 'error' });
-      } else {
-        showToast({
-          message: isBookmarked ? 'Removed from bookmarks' : 'Added to bookmarks',
-          type: 'success',
-        });
       }
     } catch (error) {
       console.error('Error bookmarking digest post:', error);
       setPosts((prev) =>
         prev.map((p) => (p.id === postId ? { ...p, is_bookmarked: isBookmarked } : p))
       );
-      showToast({ message: 'Error updating bookmark status', type: 'error' });
     }
   };
 
-  const handleShare = async (post: PostType) => {
+  const handleShare = async (post: DigestPost) => {
     try {
       await Share.share({
         message: `${post.title}\n\nRead more at: ${post.url}`,
         title: post.title,
         url: post.url,
       });
-      showToast({ message: 'Link shared successfully', type: 'success' });
     } catch (error: any) {
       console.error('Error sharing post:', error);
-      showToast({ message: 'Failed to share story', type: 'error' });
     }
   };
 
-  const handleMarkAllRead = async () => {
-    try {
-      for (const post of posts) {
-        if (!viewedIds.has(post.id)) {
-          await markAsViewed(post.id);
-        }
-      }
-      setMarkedAllRead(true);
-      showToast({ message: 'All stories marked read', type: 'success' });
-    } catch (error) {
-      console.error('Failed to mark all as read:', error);
-      showToast({ message: 'Failed to mark stories read', type: 'error' });
-    }
-  };
-
-  const getMediaUrl = (post: PostType) => {
+  const getMediaUrl = (post: DigestPost) => {
     if (post.thumbnail_url && post.thumbnail_url.startsWith('http')) {
       return post.thumbnail_url;
     }
@@ -152,80 +133,144 @@ export default function MorningDigestScreen() {
     return null;
   };
 
-  const renderPostItem = ({ item }: { item: PostType }) => {
+  const getSourceStyles = (sourceType: string) => {
+    switch (sourceType) {
+      case 'reddit':
+        return { accent: isDark ? '#ff6b6b' : '#aa352b', icon: 'reddit' as const };
+      case 'github':
+        return { accent: isDark ? '#68d3fc' : '#00647f', icon: 'github' as const };
+      case 'blog':
+      default:
+        return { accent: colors.primary, icon: 'rss' as const };
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const onViewableItemsChanged = useCallback(({ viewableItems }: any) => {
+    if (viewableItems.length > 0) {
+      setActiveIndex(viewableItems[0].index ?? 0);
+    }
+  }, []);
+
+  const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
+
+  const renderDigestCard = ({ item, index }: { item: DigestPost; index: number }) => {
     const mediaUrl = getMediaUrl(item);
-    const isPostViewed = viewedIds.has(item.id);
     const sourceType = item.sources?.type || 'blog';
     const sourceName = item.sources?.name || item.author || 'Blog';
-
-    const getThemeStyles = () => {
-      switch (sourceType) {
-        case 'reddit':
-          return { accent: isDark ? '#ff6b6b' : '#aa352b', icon: 'reddit' };
-        case 'github':
-          return { accent: isDark ? '#68d3fc' : '#00647f', icon: 'github' };
-        case 'blog':
-        default:
-          return { accent: isDark ? '#ff4f4f' : '#bc000a', icon: 'rss' };
-      }
-    };
-    const themeStyles = getThemeStyles();
+    const theme = getSourceStyles(sourceType);
+    const isPostViewed = viewedIds.has(item.id);
 
     return (
-      <View style={[styles.cardItem, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
-        {mediaUrl ? (
-          <View style={styles.cardImageContainer}>
-            <Image source={{ uri: mediaUrl }} style={styles.cardImage} resizeMode="cover" />
-          </View>
-        ) : (
-          <View style={[styles.cardPlaceholder, { backgroundColor: isDark ? '#2c2c2c' : '#e3dfde' }]}>
-            <FontAwesome5 name={themeStyles.icon} size={32} color={`${themeStyles.accent}25`} />
-          </View>
-        )}
+      <View style={[styles.digestCard, { width: screenWidth }]}>
+        <View style={[styles.cardInner, { backgroundColor: colors.background, borderColor: colors.border }]}>
 
-        <View style={styles.cardBody}>
-          <View style={styles.cardMetaRow}>
-            <View style={[styles.sourceBadge, { borderColor: `${themeStyles.accent}60` }]}>
-              <FontAwesome5 name={themeStyles.icon} size={9} color={themeStyles.accent} />
-              <Text style={[styles.sourceNameText, { color: themeStyles.accent }]}>{sourceName}</Text>
-            </View>
-            {isPostViewed && (
-              <View style={[styles.readBadge, { backgroundColor: isDark ? '#2b2b2b' : '#e3dfde' }]}>
-                <Text style={[styles.readBadgeText, { color: colors.text }]}>READ</Text>
+          {/* Image Section */}
+          <View style={[styles.imageSection, { backgroundColor: colors.surfaceContainer }]}>
+            {mediaUrl ? (
+              <>
+                <Image source={{ uri: mediaUrl }} style={styles.cardImage} resizeMode="cover" />
+                <View style={styles.imageOverlay} />
+              </>
+            ) : (
+              <View style={[styles.imagePlaceholder, { backgroundColor: isDark ? '#2c2b2b' : '#f0eded' }]}>
+                <FontAwesome5 name={theme.icon} size={40} color={`${theme.accent}25`} />
               </View>
             )}
+
+            {/* Card counter badge */}
+            <View style={[styles.counterBadge, { backgroundColor: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.85)' }]}>
+              <Text style={[styles.counterText, { color: isDark ? '#fff' : '#1c1b1b' }]}>
+                {index + 1} / {posts.length}
+              </Text>
+            </View>
           </View>
 
-          <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={2}>
-            {item.title}
-          </Text>
+          {/* Content Section */}
+          <View style={styles.contentSection}>
 
-          <Text style={[styles.cardExcerpt, { color: colors.text }]} numberOfLines={2}>
-            {item.content || 'No content preview.'}
-          </Text>
+            {/* Source Citation Row */}
+            <View style={styles.citationRow}>
+              <View style={[styles.sourceBadge, { borderColor: `${theme.accent}60` }]}>
+                <FontAwesome5 name={theme.icon} size={10} color={theme.accent} />
+                <Text style={[styles.sourceText, { color: theme.accent }]}>{sourceName}</Text>
+              </View>
+              <Text style={[styles.dateText, { color: colors.tabIconDefault }]}>
+                {formatDate(item.published_at)}
+              </Text>
+              {isPostViewed && (
+                <View style={[styles.readBadge, { backgroundColor: isDark ? '#2b2b2b' : '#e3dfde' }]}>
+                  <Text style={[styles.readBadgeText, { color: colors.tabIconDefault }]}>READ</Text>
+                </View>
+              )}
+            </View>
 
-          <View style={[styles.cardDivider, { backgroundColor: colors.border }]} />
+            {/* Title */}
+            <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={3}>
+              {item.title}
+            </Text>
 
-          <View style={styles.cardActionRow}>
-            <Pressable
-              style={[styles.cardActionBtn, { borderColor: colors.border }]}
-              onPress={() => Linking.openURL(item.url)}
-            >
-              <Ionicons name="open-outline" size={14} color={colors.text} />
-              <Text style={[styles.cardActionBtnText, { color: colors.text }]}>READ STORY</Text>
-            </Pressable>
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-            <View style={styles.cardRightActions}>
-              <Pressable onPress={() => handleShare(item)} style={styles.iconActionBtn}>
-                <Ionicons name="share-social-outline" size={16} color={colors.text} />
+            {/* AI Takeaway */}
+            {item.digest_takeaway ? (
+              <View style={[styles.takeawayBox, { backgroundColor: isDark ? '#1a1818' : '#fff9f8', borderColor: `${colors.primary}30` }]}>
+                <View style={styles.takeawayHeader}>
+                  <Ionicons name="sparkles" size={14} color={colors.primary} />
+                  <Text style={[styles.takeawayLabel, { color: colors.primary }]}>AI TAKEAWAY</Text>
+                </View>
+                <Text style={[styles.takeawayText, { color: colors.text }]}>
+                  {item.digest_takeaway}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.takeawayBox}>
+                <Text style={[styles.takeawayText, { color: colors.tabIconDefault }]}>
+                  No AI takeaway available for this post.
+                </Text>
+              </View>
+            )}
+
+            {/* Actions Row */}
+            <View style={styles.actionsRow}>
+              <Pressable
+                style={[styles.readBtn, { borderColor: colors.border }]}
+                onPress={() => {
+                  markAsViewed(item.id);
+                  Linking.openURL(item.url);
+                }}
+              >
+                <Ionicons name="open-outline" size={14} color={colors.text} />
+                <Text style={[styles.readBtnText, { color: colors.text }]}>READ FULL STORY</Text>
               </Pressable>
-              <Pressable onPress={() => handleToggleBookmark(item.id, item.is_bookmarked)} style={styles.iconActionBtn}>
-                <Ionicons
-                  name={item.is_bookmarked ? 'bookmark' : 'bookmark-outline'}
-                  size={16}
-                  color={item.is_bookmarked ? colors.primary : colors.text}
-                />
-              </Pressable>
+
+              <View style={styles.rightActions}>
+                <Pressable onPress={() => handleShare(item)} style={[styles.iconBtn, { borderColor: colors.border }]}>
+                  <Ionicons name="share-social-outline" size={18} color={colors.text} />
+                </Pressable>
+                <Pressable
+                  onPress={() => handleToggleBookmark(item.id, item.is_bookmarked)}
+                  style={[styles.iconBtn, { borderColor: colors.border }]}
+                >
+                  <Ionicons
+                    name={item.is_bookmarked ? 'bookmark' : 'bookmark-outline'}
+                    size={18}
+                    color={item.is_bookmarked ? colors.primary : colors.text}
+                  />
+                </Pressable>
+              </View>
             </View>
           </View>
         </View>
@@ -235,79 +280,64 @@ export default function MorningDigestScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      {/* Header */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <View style={styles.headerTitleRow}>
-          <Ionicons name="sunny" size={24} color={colors.primary} />
-          <Text style={[styles.headerTitle, { color: colors.text }]}>MORNING DIGEST</Text>
-        </View>
-        <Text style={[styles.headerSubtitle, { color: colors.primary }]}>Your Daily AI-Curated Briefing</Text>
-      </View>
+      <Header
+        title="DAILY DIGEST"
+        subtitle="AI-Curated Briefing"
+        titleIcon={<Ionicons name="sunny" size={24} color={colors.primary} />}
+      />
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.text }]}>Generating your morning briefing...</Text>
-          <Text style={[styles.loadingSubText, { color: colors.tabIconDefault }]}>Synthesizing feed data with Llama 3</Text>
+          <Text style={[styles.loadingText, { color: colors.text }]}>Generating your digest...</Text>
+          <Text style={[styles.loadingSubText, { color: colors.tabIconDefault }]}>Analyzing top stories with AI</Text>
+        </View>
+      ) : posts.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="newspaper-outline" size={48} color={colors.tabIconDefault} />
+          <Text style={[styles.emptyText, { color: colors.text }]}>{digestText}</Text>
         </View>
       ) : (
-        <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
-          {/* Briefing Box */}
-          <View style={[
-            styles.briefBox,
-            { 
-              backgroundColor: isDark ? '#1a1818' : '#fff9f8', 
-              borderColor: colors.primary,
-              shadowColor: colors.primary
-            }
-          ]}>
-            <View style={styles.briefHeader}>
-              <Ionicons name="sparkles" size={16} color={colors.primary} />
-              <Text style={[styles.briefHeaderText, { color: colors.primary }]}>AI MORNING BRIEFING</Text>
-            </View>
-            <MarkdownRenderer content={digestText} />
+        <View style={styles.mainContent}>
+          {/* Greeting */}
+          <View style={styles.greetingContainer}>
+            <Text style={[styles.greetingText, { color: colors.text }]}>{digestText}</Text>
+            <Text style={[styles.swipeHint, { color: colors.tabIconDefault }]}>
+              Swipe to browse • {posts.length} stories
+            </Text>
           </View>
 
-          {/* Featured Posts list */}
-          {posts.length > 0 && (
-            <View style={styles.featuredContainer}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>FEATURED STORIES TODAY</Text>
-              
-              <FlatList
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                data={posts}
-                keyExtractor={(item) => item.id}
-                renderItem={renderPostItem}
-                snapToInterval={CARD_WIDTH + 16}
-                decelerationRate="fast"
-                contentContainerStyle={styles.featuredListContent}
+          {/* Swipeable Cards */}
+          <FlatList
+            ref={flatListRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            data={posts}
+            keyExtractor={(item) => item.id}
+            renderItem={renderDigestCard}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
+            decelerationRate="fast"
+            snapToAlignment="start"
+          />
+
+          {/* Dot Pagination */}
+          <View style={styles.pagination}>
+            {posts.map((_, idx) => (
+              <View
+                key={idx}
+                style={[
+                  styles.dot,
+                  {
+                    backgroundColor: idx === activeIndex ? colors.primary : (isDark ? '#444' : '#ccc'),
+                    width: idx === activeIndex ? 20 : 8,
+                  },
+                ]}
               />
-            </View>
-          )}
-
-          {/* Mark all as read action */}
-          {posts.length > 0 && (
-            <View style={styles.actionContainer}>
-              {markedAllRead ? (
-                <View style={[styles.successBox, { backgroundColor: isDark ? '#1b2c1f' : '#f0faf2', borderColor: '#2b8a3e' }]}>
-                  <Ionicons name="checkmark-circle" size={20} color="#2b8a3e" />
-                  <Text style={[styles.successText, { color: '#2b8a3e' }]}>All digest stories marked as read!</Text>
-                </View>
-              ) : (
-                <Pressable
-                  style={[styles.markReadBtn, { backgroundColor: colors.primary, borderColor: colors.border }]}
-                  onPress={handleMarkAllRead}
-                >
-                  <Ionicons name="checkmark-done" size={18} color="#ffffff" />
-                  <Text style={styles.markReadBtnText}>MARK ALL AS READ</Text>
-                </Pressable>
-              )}
-            </View>
-          )}
-
-          <View style={styles.bottomGap} />
-        </ScrollView>
+            ))}
+          </View>
+        </View>
       )}
     </SafeAreaView>
   );
@@ -317,34 +347,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-  },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    fontFamily: 'SpaceMono',
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    fontFamily: 'SpaceMono',
-    marginTop: 2,
-    letterSpacing: 0.5,
-  },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
-    gap: 12,
+    gap: 10,
   },
   loadingText: {
     fontSize: 16,
@@ -358,95 +366,111 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceMono',
     textAlign: 'center',
   },
-  contentContainer: {
+  emptyContainer: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
-  briefBox: {
-    borderWidth: 1.5,
-    padding: 16,
-    borderRadius: 4,
-    marginBottom: 24,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  briefHeader: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(188, 0, 10, 0.15)',
+    justifyContent: 'center',
+    padding: 40,
+    gap: 16,
+  },
+  emptyText: {
+    fontSize: 14,
+    fontFamily: 'SpaceMono',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  mainContent: {
+    flex: 1,
+  },
+  greetingContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
     paddingBottom: 8,
   },
-  briefHeaderText: {
-    fontSize: 13,
-    fontWeight: '800',
+  greetingText: {
+    fontSize: 15,
+    fontWeight: '600',
     fontFamily: 'SpaceMono',
-    letterSpacing: 1,
+    lineHeight: 22,
   },
-  featuredContainer: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '800',
+  swipeHint: {
+    fontSize: 11,
     fontFamily: 'SpaceMono',
-    marginBottom: 12,
-    letterSpacing: 0.5,
+    marginTop: 4,
   },
-  featuredListContent: {
-    gap: 16,
-    paddingRight: 20,
+  digestCard: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
-  cardItem: {
-    width: CARD_WIDTH,
+  cardInner: {
+    flex: 1,
     borderWidth: 1,
-    borderRadius: 0,
     overflow: 'hidden',
   },
-  cardImageContainer: {
+  imageSection: {
     width: '100%',
-    height: 120,
+    height: 180,
+    position: 'relative',
   },
   cardImage: {
     width: '100%',
     height: '100%',
   },
-  cardPlaceholder: {
+  imageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  imagePlaceholder: {
     width: '100%',
-    height: 120,
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardBody: {
-    padding: 14,
+  counterBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 3,
   },
-  cardMetaRow: {
+  counterText: {
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily: 'SpaceMono',
+  },
+  contentSection: {
+    padding: 16,
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  citationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+    gap: 10,
+    marginBottom: 10,
   },
   sourceBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    borderWidth: 0.75,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    borderWidth: 1,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
   },
-  sourceNameText: {
+  sourceText: {
     fontSize: 10,
     fontWeight: '700',
     fontFamily: 'SpaceMono',
   },
+  dateText: {
+    fontSize: 10,
+    fontWeight: '500',
+    fontFamily: 'SpaceMono',
+  },
   readBadge: {
     paddingHorizontal: 5,
-    paddingVertical: 1.5,
+    paddingVertical: 2,
   },
   readBadgeText: {
     fontSize: 8,
@@ -454,84 +478,80 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceMono',
   },
   cardTitle: {
-    fontSize: 14,
+    fontSize: 17,
     fontWeight: '800',
-    lineHeight: 18,
+    lineHeight: 23,
     fontFamily: 'SpaceMono',
-    marginBottom: 6,
-  },
-  cardExcerpt: {
-    fontSize: 11,
-    lineHeight: 16,
-    fontFamily: 'SpaceMono',
-    opacity: 0.8,
     marginBottom: 12,
   },
-  cardDivider: {
-    height: 0.5,
-    marginBottom: 10,
+  divider: {
+    height: 1,
+    marginBottom: 12,
   },
-  cardActionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cardActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  takeawayBox: {
     borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    borderColor: 'transparent',
+    padding: 12,
+    marginBottom: 16,
+    borderRadius: 2,
+    flex: 1,
   },
-  cardActionBtnText: {
-    fontSize: 10,
-    fontWeight: '700',
-    fontFamily: 'SpaceMono',
-  },
-  cardRightActions: {
+  takeawayHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 6,
+    marginBottom: 8,
   },
-  iconActionBtn: {
-    padding: 2,
-  },
-  actionContainer: {
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  markReadBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    width: '100%',
-    height: 48,
-    borderWidth: 1,
-  },
-  markReadBtnText: {
-    color: '#ffffff',
-    fontSize: 13,
+  takeawayLabel: {
+    fontSize: 11,
     fontWeight: '800',
     fontFamily: 'SpaceMono',
+    letterSpacing: 0.5,
   },
-  successBox: {
+  takeawayText: {
+    fontSize: 13,
+    lineHeight: 20,
+    fontFamily: 'SpaceMono',
+  },
+  actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    width: '100%',
-    height: 48,
-    borderWidth: 1,
-    borderRadius: 2,
+    justifyContent: 'space-between',
   },
-  successText: {
-    fontSize: 12,
+  readBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  readBtnText: {
+    fontSize: 11,
     fontWeight: '700',
     fontFamily: 'SpaceMono',
   },
-  bottomGap: {
-    height: 40,
+  rightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pagination: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 16,
+  },
+  dot: {
+    height: 8,
+    borderRadius: 4,
   },
 });

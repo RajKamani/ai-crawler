@@ -25,11 +25,18 @@ async def send_push_notification(tokens: List[str], title: str, body: str, data:
         return False
 
     payload = []
+    has_mock = False
     for token in tokens:
         # Simple validation
         if not (token.startswith("ExponentPushToken[") or token.startswith("ExponentPushToken%5B") or token.startswith("ExponentPushToken")):
             logger.warning(f"Skipping invalid token format: {token}")
             continue
+        
+        if "mock" in token.lower():
+            logger.info(f"[Push Mock] Bypassing Expo HTTP request for mock token: {token} | Title: {title} | Body: {body}")
+            has_mock = True
+            continue
+
         item = {
             "to": token,
             "title": title,
@@ -41,7 +48,7 @@ async def send_push_notification(tokens: List[str], title: str, body: str, data:
         payload.append(item)
 
     if not payload:
-        return False
+        return has_mock
 
     try:
         async with httpx.AsyncClient() as client:

@@ -20,7 +20,7 @@ if (Platform.OS !== 'web') {
 
 // AdMob Test Unit IDs
 const adUnitId = Platform.select({
-  android: __DEV__ ? TestIds.REWARDED : 'ca-app-pub-3940256099942544~3347511713', // Replace with real Android Ad Unit ID in prod
+  android: __DEV__ ? TestIds.REWARDED : 'ca-app-pub-3940256099942544/5224354917', // Replace with real Android Ad Unit ID in prod
   ios: __DEV__ ? TestIds.REWARDED : 'ca-app-pub-3940256099942544~1458002511',     // Replace with real iOS Ad Unit ID in prod
   default: TestIds.REWARDED,
 }) || TestIds.REWARDED;
@@ -31,11 +31,11 @@ export function useRewardedAd(onRewardedComplete: () => void, onAdFailed: (error
 
   const loadAd = useCallback(() => {
     setIsLoaded(false);
-    
+
     if (Platform.OS === 'web' || !RewardedAd) {
       // Mock ad for web
       setIsLoaded(true);
-      return () => {};
+      return () => { };
     }
 
     // Create new RewardedAd instance
@@ -65,7 +65,7 @@ export function useRewardedAd(onRewardedComplete: () => void, onAdFailed: (error
     // Catch ad loading error
     const unsubscribeFailed = rewardedAd.addAdEventListener(
       RewardedAdEventType.LOADED,
-      () => {}
+      () => { }
     );
 
     // In react-native-google-mobile-ads, error events are caught with standard handlers

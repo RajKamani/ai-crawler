@@ -521,7 +521,10 @@ async def get_unread_count(user = Depends(get_current_user)):
 
 @router.get("/digest")
 async def get_daily_digest(user = Depends(get_current_user)):
-    """Generate a daily digest morning brief of the top 5 unread posts using Groq"""
+    """Generate a daily digest with individual per-post AI takeaways (free, no user quota)"""
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+
     try:
         # 1. Fetch user's active subreddits & blogs
         user_subs_res = supabase.table("user_subreddits") \
@@ -556,7 +559,7 @@ async def get_daily_digest(user = Depends(get_current_user)):
                 allowed_source_ids.append(s["id"])
 
         if not allowed_source_ids:
-            return {"digest_text": "You haven't followed any sources yet. Go to Settings to add subreddits or RSS blogs.", "posts": []}
+            return {"digest_text": "Follow some sources in Settings to get your daily digest.", "posts": []}
 
         # 2. Fetch user's viewed posts
         views_res = supabase.table("post_views") \
@@ -572,65 +575,72 @@ async def get_daily_digest(user = Depends(get_current_user)):
             .order("published_at", desc=True) \
             .limit(30) \
             .execute()
-            
+
         all_recent_posts = posts_res.data or []
-        
-        # Sort so that unread ones come first, then sort by popularity (score)
+
+        # Sort: unread first, then by popularity score
         def sort_key(p):
             is_read = p["id"] in viewed_ids
             score = p.get("raw_data", {}).get("score") or 0 if isinstance(p.get("raw_data"), dict) else 0
             return (0 if not is_read else 1, -score, p.get("published_at", ""))
-            
+
         all_recent_posts.sort(key=sort_key)
-        
+
         # Select top 5 digest posts
         digest_posts = all_recent_posts[:5]
         if not digest_posts:
-            return {"digest_text": "No new posts available today for your feed.", "posts": []}
-            
-        # 4. Generate AI Morning Briefing text using Groq
-        briefing_text = ""
+            return {"digest_text": "No new posts available today.", "posts": []}
+
+        # 4. Generate individual per-post AI takeaways (free, no quota deduction)
+        groq_client = None
         if settings.GROQ_API_KEY:
             try:
-                # Combine titles and contents
-                post_items = []
-                for p in digest_posts:
-                    source_name = (p.get("sources") or {}).get("name", "Unknown") if isinstance(p.get("sources"), dict) else "Unknown"
-                    post_items.append(f"Source ({source_name}): Title: {p['title']}\nContent Excerpt: {(p['content'] or '')[:300]}")
-                
-                combined_text = "\n\n".join(post_items)
-                
-                prompt = (
-                    f"Generate a personal morning briefing / digest of the following top posts. "
-                    f"Write in a friendly, engaging tone like a personal assistant. "
-                    f"Synthesize the news into a cohesive digest of 3-4 short paragraphs. "
-                    f"Give bold titles for each main story/highlight. "
-                    f"Keep it professional and concise.\n\n"
-                    f"Posts details:\n{combined_text}"
-                )
-                
                 from groq import Groq
-                client = Groq(api_key=settings.GROQ_API_KEY)
-                completion = client.chat.completions.create(
+                groq_client = Groq(api_key=settings.GROQ_API_KEY)
+            except Exception as e:
+                logger.error(f"Failed to init Groq client for digest: {e}")
+
+        def _generate_takeaway(post: dict) -> str:
+            """Generate a short takeaway for a single post (runs in thread pool)"""
+            if not groq_client:
+                return ""
+            title = post.get("title", "")
+            content = (post.get("content") or "")[:2000]
+            source_name = (post.get("sources") or {}).get("name", "Unknown") if isinstance(post.get("sources"), dict) else "Unknown"
+
+            prompt = (
+                f"Write a concise 2-3 sentence takeaway for this post. "
+                f"Focus on what's important and why a developer should care. "
+                f"Be direct, no fluff.\n\n"
+                f"Source: {source_name}\n"
+                f"Title: {title}\n"
+                f"Content: {content}"
+            )
+            try:
+                completion = groq_client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[
-                        {"role": "system", "content": "You are a professional personal intelligence assistant generating a friendly morning briefing digest."},
+                        {"role": "system", "content": "You are a concise tech news analyst. Write short, punchy takeaways."},
                         {"role": "user", "content": prompt}
                     ],
-                    temperature=0.7,
-                    max_tokens=600
+                    temperature=0.5,
+                    max_tokens=150
                 )
-                briefing_text = completion.choices[0].message.content.strip()
+                return completion.choices[0].message.content.strip()
             except Exception as e:
-                logger.error(f"Failed to generate daily digest briefing: {e}")
-                
-        if not briefing_text:
-            briefing_text = "### 🌅 Your Morning Briefing\nHere are the top stories curated from your feed today:\n\n"
-            for p in digest_posts:
-                source_name = (p.get("sources") or {}).get("name", "Unknown") if isinstance(p.get("sources"), dict) else "Unknown"
-                briefing_text += f"- **{p['title']}** (from {source_name})\n"
-                
-        # Format the posts with bookmarked/viewed flags
+                logger.error(f"Groq takeaway failed for '{title}': {e}")
+                return ""
+
+        # Run all takeaway calls concurrently in a thread pool
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            takeaway_futures = [
+                loop.run_in_executor(executor, _generate_takeaway, p)
+                for p in digest_posts
+            ]
+            takeaways = await asyncio.gather(*takeaway_futures)
+
+        # 5. Format posts with bookmarks, views, and takeaways
         digest_post_ids = [p["id"] for p in digest_posts]
         bookmarks_res = supabase.table("bookmarks") \
             .select("post_id") \
@@ -638,17 +648,30 @@ async def get_daily_digest(user = Depends(get_current_user)):
             .in_("post_id", digest_post_ids) \
             .execute()
         bookmarked_ids = set(b["post_id"] for b in bookmarks_res.data)
-        
+
         formatted_posts = []
-        for p in digest_posts:
+        for i, p in enumerate(digest_posts):
             raw = p.get("raw_data") or {}
             p["thumbnail_url"] = raw.get("thumbnail_url") if isinstance(raw, dict) else None
             p["is_bookmarked"] = p["id"] in bookmarked_ids
             p["is_viewed"] = p["id"] in viewed_ids
+            p["digest_takeaway"] = takeaways[i] if i < len(takeaways) else ""
             formatted_posts.append(p)
-            
+
+        # Generate a short greeting
+        from datetime import datetime
+        hour = datetime.now().hour
+        if hour < 12:
+            greeting = "Good morning"
+        elif hour < 17:
+            greeting = "Good afternoon"
+        else:
+            greeting = "Good evening"
+
+        digest_text = f"{greeting} — here are today's top stories from your feed."
+
         return {
-            "digest_text": briefing_text,
+            "digest_text": digest_text,
             "posts": formatted_posts
         }
     except Exception as e:

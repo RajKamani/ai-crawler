@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useNavigation } from 'expo-router';
+import { router } from 'expo-router';
 import { API_BASE_URL, AUTH_HEADER } from '@/constants/Config';
 import { PostType } from '@/components/PostCard';
 import { InshortsCard } from '@/components/InshortsCard';
@@ -20,10 +20,13 @@ import { useNewContentNotification } from '@/hooks/useNewContentNotification';
 import { useTheme } from '@/hooks/useTheme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useToast } from '@/context/ToastContext';
+import { useSummary } from '@/context/SummaryContext';
+import { Header } from '@/components/Header';
 
 export default function HomeFeedScreen() {
   const colors = useTheme();
   const { showToast } = useToast();
+  const { allowanceRemaining, fetchAllowance } = useSummary();
   const [posts, setPosts] = useState<PostType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -38,44 +41,6 @@ export default function HomeFeedScreen() {
   // Height container measurement
   const [containerHeight, setContainerHeight] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
-
-  const navigation = useNavigation();
-
-  const checkUnreadNotifications = async () => {
-    try {
-      const stored = await AsyncStorage.getItem('@notification_history');
-      if (stored) {
-        const history = JSON.parse(stored);
-        const hasUnread = history.some((item: any) => !item.isRead);
-        setHasUnreadNotifications(hasUnread);
-      } else {
-        setHasUnreadNotifications(false);
-      }
-    } catch (e) {
-      console.error('Failed to check unread notifications:', e);
-    }
-  };
-
-  useEffect(() => {
-    checkUnreadNotifications();
-
-    // Listen to real-time notification received events
-    const { DeviceEventEmitter } = require('react-native');
-    const sub = DeviceEventEmitter.addListener('notificationReceived', () => {
-      checkUnreadNotifications();
-    });
-
-    // Listen to focus changes to update when coming back from modal tray screen
-    const unsubscribeFocus = navigation.addListener('focus', () => {
-      checkUnreadNotifications();
-    });
-
-    return () => {
-      sub.remove();
-      unsubscribeFocus();
-    };
-  }, [navigation]);
 
   const fetchUnreadCount = async () => {
     try {
@@ -194,6 +159,7 @@ export default function HomeFeedScreen() {
     setIsRefreshing(true);
     setHasMore(true);
     fetchFeed(1, true);
+    fetchAllowance();
   };
 
   const handleLoadMore = () => {
@@ -264,29 +230,11 @@ export default function HomeFeedScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header Area */}
-      <View style={[styles.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-        <View style={styles.titleContainer}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>AI CRAWLER</Text>
-            {unreadCount > 0 && (
-              <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
-                <Text style={styles.unreadBadgeText}>{unreadCount} NEW</Text>
-              </View>
-            )}
-          </View>
-          <Text style={[styles.headerSubtitle, { color: colors.primary }]}>PERSONALIZED FEED // INSHORTS</Text>
-        </View>
-
-        <Pressable
-          style={styles.bellButton}
-          onPress={() => router.push('/modal' as any)}
-        >
-          <Ionicons name="notifications-outline" size={24} color={colors.text} />
-          {hasUnreadNotifications && (
-            <View style={[styles.bellRedDot, { backgroundColor: colors.primary, borderColor: colors.background }]} />
-          )}
-        </Pressable>
-      </View>
+      <Header
+        title="AI CRAWLER"
+        subtitle="PERSONALIZED FEED // INSHORTS"
+        unreadCount={unreadCount}
+      />
 
       {/* New updates banner */}
       {newPostsAvailable && (
@@ -458,58 +406,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fcf9f8',
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#fcf9f8',
-    borderBottomWidth: 1,
-    borderBottomColor: '#1c1b1b',
-  },
-  titleContainer: {
-    flexDirection: 'column',
-  },
-  unreadBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 2,
-  },
-  unreadBadgeText: {
-    color: '#ffffff',
-    fontSize: 9,
-    fontWeight: '700',
-    fontFamily: 'SpaceMono',
-  },
-  headerTitle: {
-    color: '#1c1b1b',
-    fontSize: 22,
-    fontWeight: '700',
-    fontFamily: 'SpaceMono',
-  },
-  headerSubtitle: {
-    color: '#bc000a',
-    fontSize: 12,
-    fontWeight: '700',
-    fontFamily: 'SpaceMono',
-    marginTop: 2,
-  },
-  bellButton: {
-    padding: 6,
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  bellRedDot: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
-    borderWidth: 1.5,
-  },
+
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',

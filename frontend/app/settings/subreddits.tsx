@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, ScrollView } from 'react-native';
+import { StyleSheet, View, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SubredditManager } from '@/components/SubredditManager';
 import { useUserSubreddits } from '@/hooks/useUserSubreddits';
 import { useTheme } from '@/hooks/useTheme';
@@ -16,18 +16,24 @@ export default function ManageSubredditsScreen() {
   } = useUserSubreddits();
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <SubredditManager
-          subreddits={subreddits}
-          suggestions={suggestions}
-          isLoading={isLoading}
-          onAddSubreddit={addSubreddit}
-          onRemoveSubreddit={removeSubreddit}
-          onToggleSubreddit={toggleSubreddit}
-        />
-      </ScrollView>
-    </View>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <SubredditManager
+            subreddits={subreddits}
+            suggestions={suggestions}
+            isLoading={isLoading}
+            onAddSubreddit={addSubreddit}
+            onRemoveSubreddit={removeSubreddit}
+            onToggleSubreddit={toggleSubreddit}
+          />
+        </ScrollView>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
