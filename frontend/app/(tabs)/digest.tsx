@@ -10,12 +10,13 @@ import {
   Image,
   Dimensions,
   FlatList,
-  Animated,
+  ScrollView,
 } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { API_BASE_URL, AUTH_HEADER } from '@/constants/Config';
 import { PostType } from '@/components/PostCard';
+import { MarkdownRenderer } from '@/components/MarkdownRenderer';
 import { useViewedPosts } from '@/hooks/useViewedPosts';
 import { useTheme } from '@/hooks/useTheme';
 import { useToast } from '@/context/ToastContext';
@@ -36,6 +37,8 @@ export default function MorningDigestScreen() {
   const [posts, setPosts] = useState<DigestPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [layoutWidth, setLayoutWidth] = useState(screenWidth);
+  const [layoutHeight, setLayoutHeight] = useState(0);
 
   const { viewedIds, markAsViewed } = useViewedPosts();
   const flatListRef = useRef<FlatList>(null);
@@ -174,7 +177,7 @@ export default function MorningDigestScreen() {
     const isPostViewed = viewedIds.has(item.id);
 
     return (
-      <View style={[styles.digestCard, { width: screenWidth }]}>
+      <View style={[styles.digestCard, { width: layoutWidth, height: layoutHeight }]}>
         <View style={[styles.cardInner, { backgroundColor: colors.background, borderColor: colors.border }]}>
 
           {/* Image Section */}
@@ -198,9 +201,13 @@ export default function MorningDigestScreen() {
             </View>
           </View>
 
-          {/* Content Section */}
-          <View style={styles.contentSection}>
-
+          {/* Content Section — Scrollable */}
+          <ScrollView
+            style={styles.contentScroll}
+            contentContainerStyle={styles.contentScrollInner}
+            showsVerticalScrollIndicator={false}
+            nestedScrollEnabled={true}
+          >
             {/* Source Citation Row */}
             <View style={styles.citationRow}>
               <View style={[styles.sourceBadge, { borderColor: `${theme.accent}60` }]}>
@@ -231,9 +238,7 @@ export default function MorningDigestScreen() {
                   <Ionicons name="sparkles" size={14} color={colors.primary} />
                   <Text style={[styles.takeawayLabel, { color: colors.primary }]}>AI TAKEAWAY</Text>
                 </View>
-                <Text style={[styles.takeawayText, { color: colors.text }]}>
-                  {item.digest_takeaway}
-                </Text>
+                <MarkdownRenderer content={item.digest_takeaway} />
               </View>
             ) : (
               <View style={styles.takeawayBox}>
@@ -242,9 +247,10 @@ export default function MorningDigestScreen() {
                 </Text>
               </View>
             )}
+          </ScrollView>
 
-            {/* Actions Row */}
-            <View style={styles.actionsRow}>
+          {/* Actions Row — Fixed at bottom */}
+          <View style={[styles.actionsRow, { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }]}>
               <Pressable
                 style={[styles.readBtn, { borderColor: colors.border }]}
                 onPress={() => {
@@ -271,7 +277,6 @@ export default function MorningDigestScreen() {
                   />
                 </Pressable>
               </View>
-            </View>
           </View>
         </View>
       </View>
@@ -307,20 +312,38 @@ export default function MorningDigestScreen() {
             </Text>
           </View>
 
-          {/* Swipeable Cards */}
-          <FlatList
-            ref={flatListRef}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            data={posts}
-            keyExtractor={(item) => item.id}
-            renderItem={renderDigestCard}
-            onViewableItemsChanged={onViewableItemsChanged}
-            viewabilityConfig={viewabilityConfig}
-            decelerationRate="fast"
-            snapToAlignment="start"
-          />
+          {/* Swipeable Cards Container */}
+          <View
+            style={{ flex: 1 }}
+            onLayout={(e) => {
+              const { width, height } = e.nativeEvent.layout;
+              setLayoutWidth(width);
+              setLayoutHeight(height);
+            }}
+          >
+            {layoutHeight > 0 && (
+              <FlatList
+                ref={flatListRef}
+                horizontal
+                pagingEnabled={true}
+                showsHorizontalScrollIndicator={false}
+                data={posts}
+                keyExtractor={(item) => item.id}
+                renderItem={renderDigestCard}
+                onViewableItemsChanged={onViewableItemsChanged}
+                viewabilityConfig={viewabilityConfig}
+                decelerationRate="fast"
+                snapToInterval={layoutWidth}
+                snapToAlignment="start"
+                style={styles.flatList}
+                getItemLayout={(data, index) => ({
+                  length: layoutWidth,
+                  offset: layoutWidth * index,
+                  index,
+                })}
+              />
+            )}
+          </View>
 
           {/* Dot Pagination */}
           <View style={styles.pagination}>
@@ -382,6 +405,9 @@ const styles = StyleSheet.create({
   mainContent: {
     flex: 1,
   },
+  flatList: {
+    flex: 1,
+  },
   greetingContainer: {
     paddingHorizontal: 20,
     paddingTop: 12,
@@ -401,6 +427,7 @@ const styles = StyleSheet.create({
   digestCard: {
     paddingHorizontal: 16,
     paddingTop: 8,
+    paddingBottom: 8,
   },
   cardInner: {
     flex: 1,
@@ -439,10 +466,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: 'SpaceMono',
   },
-  contentSection: {
-    padding: 16,
+  contentScroll: {
     flex: 1,
-    justifyContent: 'space-between',
+  },
+  contentScrollInner: {
+    padding: 16,
+    paddingBottom: 4,
   },
   citationRow: {
     flexDirection: 'row',
@@ -494,7 +523,6 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 16,
     borderRadius: 2,
-    flex: 1,
   },
   takeawayHeader: {
     flexDirection: 'row',
@@ -517,6 +545,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 14,
   },
   readBtn: {
     flexDirection: 'row',
