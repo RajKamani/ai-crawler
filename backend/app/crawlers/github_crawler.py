@@ -237,13 +237,20 @@ class GitHubCrawler(BaseCrawler):
             if await self.is_duplicate(repo_url, source["id"]):
                 continue
 
+            description = repo["description"]
+            stars = repo["stars"]
+
+            # Quality filter: Skip if description is blank/placeholder AND star count is very low (e.g. < 50 stars)
+            is_empty_desc = not description or description.strip().lower() in ["no description provided.", "no description"]
+            if is_empty_desc and 0 < stars < 50:
+                logger.info(f"Skipping low-quality/junk repository: {title} (Stars: {stars}, No Description)")
+                continue
+
             parts = title.split('/')
             owner = parts[0] if len(parts) > 0 else "Unknown"
 
             # Create rich markdown content for PostCard display
-            description = repo["description"]
             language = repo["language"]
-            stars = repo["stars"]
             content = f"{description}\n\nLanguage: {language} | Stars: ⭐ {stars:,} | Forks: 🍴 0"
 
             res = await self.save_post(
@@ -314,6 +321,12 @@ class GitHubCrawler(BaseCrawler):
                 topic_badges = container.find_all("a", href=re.compile(r"^/topics/"))
                 for badge in topic_badges:
                     topics.append(badge.get_text(strip=True).replace("#", ""))
+
+            # Quality filter: Skip if description is blank/placeholder AND star count is very low (e.g. < 50 stars)
+            is_empty_desc = not description or description.strip().lower() in ["no description provided.", "no description"]
+            if is_empty_desc and 0 < stars < 50:
+                logger.info(f"Skipping low-quality/junk repository: {title} (Stars: {stars}, No Description)")
+                continue
 
             parts = title.split('/')
             owner = parts[0] if len(parts) > 0 else "Unknown"
