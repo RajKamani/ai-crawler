@@ -61,6 +61,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (accessToken && refreshToken) {
+        const { data: currentSession } = await supabase.auth.getSession();
+        if (currentSession?.session) {
+          console.log('[AuthContext] Session already set. Skipping duplicate setSession.');
+          return;
+        }
+
         console.log('[AuthContext] Setting session from deep link:', url);
         const { error } = await supabase.auth.setSession({
           access_token: accessToken,

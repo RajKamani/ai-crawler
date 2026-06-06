@@ -131,6 +131,12 @@ export const AuthScreen: React.FC = () => {
         }
 
         if (accessToken && refreshToken) {
+          const { data: currentSession } = await supabase.auth.getSession();
+          if (currentSession?.session) {
+            console.log('[AuthScreen] Session already set. Skipping duplicate setSession.');
+            return;
+          }
+
           const { error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
