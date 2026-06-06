@@ -167,7 +167,7 @@ export const AuthScreen: React.FC = () => {
       <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
         {/* Header Block */}
         <View style={styles.headerBlock}>
-          <Text style={[styles.appName, { color: colors.text }]}>AI CONTENT CRAWLER</Text>
+          <Text style={[styles.appName, { color: colors.text }]}>CONTEXTIQ</Text>
           <Text style={[styles.tagline, { color: colors.primary }]}>BRUTALIST TECH INTELLIGENCE AGGREGATOR</Text>
         </View>
 

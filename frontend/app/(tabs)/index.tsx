@@ -283,7 +283,7 @@ export default function HomeFeedScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header Area */}
       <Header
-        title="AI CRAWLER"
+        title="CONTEXTIQ"
         subtitle={isPreseeded ? "TRENDING // WHILE FEED LOADS" : "PERSONALIZED FEED // INSHORTS"}
         unreadCount={unreadCount}
       />
