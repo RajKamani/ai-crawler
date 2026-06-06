@@ -18,14 +18,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useToast } from '@/context/ToastContext';
 import { useSummary } from '@/context/SummaryContext';
 import { useHaptics } from '@/hooks/useHaptics';
-
-// Safely require expo-speech to avoid module evaluation errors when native module is missing
-let Speech: any = null;
-try {
-  Speech = require('expo-speech');
-} catch (error) {
-  // Gracefully handle missing native module
-}
+import { speakText, stopSpeech, resetSpeechSession } from '../utils/speech';
 
 interface InshortsCardProps {
   post: PostType;
@@ -88,16 +81,7 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
   // Stop speaking when card becomes inactive
   useEffect(() => {
     if (!isActive && isSpeaking) {
-      if (Speech && Speech.stop) {
-        try {
-          Speech.stop();
-        } catch (e) {}
-      }
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        try {
-          window.speechSynthesis.cancel();
-        } catch (e) {}
-      }
+      resetSpeechSession();
       setIsSpeaking(false);
     }
   }, [isActive, isSpeaking]);
@@ -105,16 +89,7 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
   // Clean up speech on unmount
   useEffect(() => {
     return () => {
-      if (Speech && Speech.stop) {
-        try {
-          Speech.stop();
-        } catch (e) {}
-      }
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        try {
-          window.speechSynthesis.cancel();
-        } catch (e) {}
-      }
+      resetSpeechSession();
     };
   }, []);
 
@@ -122,64 +97,18 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
     triggerLight();
     try {
       if (isSpeaking) {
-        if (Speech && Speech.stop) {
-          try {
-            await Speech.stop();
-          } catch (e) {}
-        }
-        if (typeof window !== 'undefined' && window.speechSynthesis) {
-          try {
-            window.speechSynthesis.cancel();
-          } catch (e) {}
-        }
+        stopSpeech();
         setIsSpeaking(false);
       } else {
-        if (Speech && Speech.stop) {
-          try {
-            await Speech.stop();
-          } catch (e) {}
-        }
-        if (typeof window !== 'undefined' && window.speechSynthesis) {
-          try {
-            window.speechSynthesis.cancel();
-          } catch (e) {}
-        }
-
+        stopSpeech();
         const textToSpeak = `${post.title}. ${post.content || ''}`;
-        let started = false;
-
-        // Try Expo Speech first
-        if (Speech && Speech.speak) {
-          try {
-            Speech.speak(textToSpeak, {
-              onDone: () => setIsSpeaking(false),
-              onError: (e: any) => {
-                console.error('Speech error:', e);
-                setIsSpeaking(false);
-              },
-              onStopped: () => setIsSpeaking(false),
-            });
-            started = true;
-          } catch (e) {
-            console.warn('ExpoSpeech speak failed:', e);
+        const started = await speakText(textToSpeak, {
+          onDone: () => setIsSpeaking(false),
+          onError: (e) => {
+            console.error('Speech error:', e);
+            setIsSpeaking(false);
           }
-        }
-
-        // Try Web Speech API fallback if Expo Speech didn't start
-        if (!started && typeof window !== 'undefined' && window.speechSynthesis) {
-          try {
-            const utterance = new SpeechSynthesisUtterance(textToSpeak);
-            utterance.onend = () => setIsSpeaking(false);
-            utterance.onerror = (e) => {
-              console.error('Web Speech API error:', e);
-              setIsSpeaking(false);
-            };
-            window.speechSynthesis.speak(utterance);
-            started = true;
-          } catch (e) {
-            console.warn('Web Speech API failed:', e);
-          }
-        }
+        });
 
         if (started) {
           setIsSpeaking(true);

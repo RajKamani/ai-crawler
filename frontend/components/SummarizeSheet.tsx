@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -12,6 +12,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { useTheme } from '@/hooks/useTheme';
+import { useHaptics } from '@/hooks/useHaptics';
+import { useToast } from '@/context/ToastContext';
+import { speakText, stopSpeech, resetSpeechSession } from '../utils/speech';
 
 interface SummarizeSheetProps {
   isVisible: boolean;
@@ -30,6 +33,65 @@ export const SummarizeSheet: React.FC<SummarizeSheetProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const colors = useTheme();
+  const { triggerLight } = useHaptics();
+  const { showToast } = useToast();
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  // Stop speaking when sheet is closed
+  useEffect(() => {
+    if (!isVisible && isSpeaking) {
+      resetSpeechSession();
+      setIsSpeaking(false);
+    }
+  }, [isVisible, isSpeaking]);
+
+  // Clean up speech on unmount
+  useEffect(() => {
+    return () => {
+      resetSpeechSession();
+    };
+  }, []);
+
+  const handleToggleSpeech = async () => {
+    triggerLight();
+    try {
+      if (isSpeaking) {
+        stopSpeech();
+        setIsSpeaking(false);
+      } else {
+        if (!summary) {
+          showToast({ message: 'No summary to read.', type: 'error' });
+          return;
+        }
+        stopSpeech();
+        
+        // Clean markdown characters for a cleaner voice read experience
+        const cleanSummary = summary.replace(/[*#`\-]/g, '');
+        const textToSpeak = `Takeaways for ${postTitle}. ${cleanSummary}`;
+        
+        const started = await speakText(textToSpeak, {
+          onDone: () => setIsSpeaking(false),
+          onError: (e) => {
+            console.error('Speech error:', e);
+            setIsSpeaking(false);
+          }
+        });
+
+        if (started) {
+          setIsSpeaking(true);
+        } else {
+          showToast({
+            message: 'Speech synthesis is not available on this platform/build.',
+            type: 'error',
+          });
+          setIsSpeaking(false);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to toggle speech:', err);
+      setIsSpeaking(false);
+    }
+  };
 
   return (
     <Modal
@@ -53,9 +115,23 @@ export const SummarizeSheet: React.FC<SummarizeSheetProps> = ({
               <Ionicons name="sparkles" size={18} color={colors.primary} />
               <Text style={[styles.headerText, { color: colors.text }]}>AI TAKEAWAYS</Text>
             </View>
-            <Pressable onPress={onClose} style={[styles.closeBtn, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
-              <Ionicons name="close" size={20} color={colors.text} />
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              {summary && !isLoading && (
+                <Pressable 
+                  onPress={handleToggleSpeech} 
+                  style={[styles.closeBtn, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}
+                >
+                  <Ionicons 
+                    name={isSpeaking ? "volume-high" : "volume-high-outline"} 
+                    size={20} 
+                    color={isSpeaking ? colors.primary : colors.text} 
+                  />
+                </Pressable>
+              )}
+              <Pressable onPress={onClose} style={[styles.closeBtn, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
+                <Ionicons name="close" size={20} color={colors.text} />
+              </Pressable>
+            </View>
           </View>
 
           {/* Post Title Context */}

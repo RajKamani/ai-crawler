@@ -19,7 +19,14 @@ async def get_active_tokens(user_id: Optional[str] = None) -> List[str]:
         logger.error(f"Failed to fetch active notification tokens for user {user_id}: {e}")
         return []
 
-async def send_push_notification(tokens: List[str], title: str, body: str, data: Dict[str, Any] = None) -> bool:
+async def send_push_notification(
+    tokens: List[str],
+    title: str,
+    body: str,
+    data: Dict[str, Any] = None,
+    subtitle: Optional[str] = None,
+    priority: str = "high"
+) -> bool:
     """Send push notification to a list of Expo push tokens"""
     if not tokens:
         return False
@@ -41,8 +48,12 @@ async def send_push_notification(tokens: List[str], title: str, body: str, data:
             "to": token,
             "title": title,
             "body": body,
-            "sound": "default"
+            "sound": "default",
+            "channelId": "default",
+            "priority": priority
         }
+        if subtitle:
+            item["subtitle"] = subtitle
         if data:
             item["data"] = data
         payload.append(item)
@@ -96,10 +107,23 @@ async def notify_new_post(post_title: str, post_id: str, source_type: str, user_
     if not tokens:
         return
     
-    title = f"New post in {source_type.capitalize()}"
-    body = post_title
+    # Curated premium source labels
+    source_labels = {
+        "reddit": ("👾 CONTEXTIQ // REDDIT INTEL", "Trending Thread"),
+        "github": ("🐙 CONTEXTIQ // GIT INCOMING", "Rising Repository"),
+        "blog": ("✍️ CONTEXTIQ // TECH PUBLICATION", "Developer Blog"),
+    }
+    
+    title, subtitle = source_labels.get(
+        source_type.lower(),
+        ("📡 CONTEXTIQ // TECH INTELLIGENCE", "New Insight")
+    )
+    
+    # Format body cleanly
+    body = f"⚡ {post_title}"
+    
     data = {
         "post_id": str(post_id),
         "source_type": source_type
     }
-    await send_push_notification(tokens, title, body, data)
+    await send_push_notification(tokens, title, body, data, subtitle=subtitle, priority="high")

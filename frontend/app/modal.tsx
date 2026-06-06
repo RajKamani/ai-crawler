@@ -15,11 +15,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '@/hooks/useTheme';
 import { NotificationHistoryItem } from '@/hooks/usePushNotifications';
 import { useToast } from '@/context/ToastContext';
+import { useSummary } from '@/context/SummaryContext';
 
 export default function NotificationsModalScreen() {
   const colors = useTheme();
   const isDark = colors.isDark;
   const { showToast } = useToast();
+  const { requestSummary } = useSummary();
 
   const [notifications, setNotifications] = useState<NotificationHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -81,9 +83,15 @@ export default function NotificationsModalScreen() {
 
   const handleItemPress = async (item: NotificationHistoryItem) => {
     await markAsRead(item.id);
-    // Deep-link user to Digest page when tapping notification item
     router.dismiss();
-    router.push('/(tabs)/digest' as any);
+    if (item.data && item.data.post_id) {
+      router.replace('/(tabs)' as any);
+      setTimeout(() => {
+        requestSummary(String(item.data.post_id), item.body || item.title);
+      }, 100);
+    } else {
+      router.push('/(tabs)/digest' as any);
+    }
   };
 
   const formatDate = (dateStr: string) => {

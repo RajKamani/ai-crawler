@@ -89,7 +89,7 @@ def send_daily_digest_notifications():
                         # Truncate title if it's too long
                         if len(top_story) > 60:
                             top_story = top_story[:57] + "..."
-                        body = f"🔥 HOT: \"{top_story}\" + other fresh tech takeaways inside."
+                        body = f"🔥 HOT STACK // \"{top_story}\" and other fresh takeaways."
             except Exception as query_err:
                 logger.error(f"Error resolving preview story for user {user_id}: {query_err}")
                 # Fallback to default body if query fails
@@ -99,9 +99,12 @@ def send_daily_digest_notifications():
                 messages.append({
                     "to": token,
                     "sound": "default",
-                    "title": title,
+                    "title": "📡 CONTEXTIQ // TECHNICAL DIGEST",
+                    "subtitle": "Curated Daily Intel",
                     "body": body,
-                    "data": {"screen": "digest"}
+                    "data": {"screen": "digest"},
+                    "channelId": "default",
+                    "priority": "high"
                 })
         
         if not messages:

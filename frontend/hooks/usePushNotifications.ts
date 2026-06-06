@@ -4,6 +4,7 @@ import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { API_BASE_URL, AUTH_HEADER } from '@/constants/Config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSummary } from '@/context/SummaryContext';
 
 export interface NotificationHistoryItem {
   id: string;
@@ -72,6 +73,7 @@ export const usePushNotifications = () => {
   const [notification, setNotification] = useState<any>(null);
   const notificationListener = useRef<any>(null);
   const responseListener = useRef<any>(null);
+  const { requestSummary } = useSummary();
 
   const registerForPushNotifications = async () => {
     let token = null;
@@ -229,7 +231,14 @@ export const usePushNotifications = () => {
           const data = notif.request.content.data || null;
           saveNotificationToHistory(notifId, title, body, data);
           
-          router.push('/(tabs)/digest' as any);
+          if (data && data.post_id) {
+            router.replace('/(tabs)' as any);
+            setTimeout(() => {
+              requestSummary(String(data.post_id), body || title);
+            }, 100);
+          } else {
+            router.push('/(tabs)/digest' as any);
+          }
         }
       );
     } catch (e) {
