@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
 import { API_BASE_URL } from '@/constants/Config';
@@ -34,7 +34,7 @@ export const SummaryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
   };
 
-  const fetchAllowance = async () => {
+  const fetchAllowance = useCallback(async () => {
     try {
       const allowanceRes = await fetch(`${API_BASE_URL}/summary/allowance`, {
         method: 'GET',
@@ -47,50 +47,16 @@ export const SummaryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } catch (err) {
       console.warn('Failed to fetch summary allowance:', err);
     }
-  };
+  }, [session]);
 
   useEffect(() => {
     if (session) {
       fetchAllowance();
     }
-  }, [session]);
-
-  // Callback when rewarded ad finishes
-  const onRewardedComplete = async () => {
-    if (!currentPostId) return;
-    
-    setIsAdGateVisible(false);
-    showToast({ message: 'Reward unlocked: +1 Summary Credit!', type: 'success' });
-    
-    // 1. Claim rewarded credit on the backend
-    try {
-      const claimRes = await fetch(`${API_BASE_URL}/summary/claim-reward`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-      
-      if (!claimRes.ok) {
-        throw new Error('Failed to claim credit on backend');
-      }
-      fetchAllowance();
-    } catch (err) {
-      console.warn('[Ad Payout] Error updating allowance, proceeding anyway:', err);
-    }
-
-    // 2. Open drawer and load summary
-    setIsSheetVisible(true);
-    await fetchSummary(currentPostId);
-  };
-
-  const onAdFailed = (error: string) => {
-    showToast({ message: error, type: 'error' });
-  };
-
-  // Wire up Mobile Ads hook
-  const { showAd, isLoaded, reloadAd } = useRewardedAd(onRewardedComplete, onAdFailed);
+  }, [session, fetchAllowance]);
 
   // Fetch summary action
-  const fetchSummary = async (postId: string) => {
+  const fetchSummary = useCallback(async (postId: string) => {
     setIsLoadingSummary(true);
     setSummaryText(null);
     try {
@@ -114,7 +80,41 @@ export const SummaryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } finally {
       setIsLoadingSummary(false);
     }
-  };
+  }, [session, showToast, fetchAllowance]);
+
+  // Callback when rewarded ad finishes
+  const onRewardedComplete = useCallback(async () => {
+    if (!currentPostId) return;
+    
+    setIsAdGateVisible(false);
+    showToast({ message: 'Reward unlocked: +1 Summary Credit!', type: 'success' });
+    
+    // 1. Claim rewarded credit on the backend
+    try {
+      const claimRes = await fetch(`${API_BASE_URL}/summary/claim-reward`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      
+      if (!claimRes.ok) {
+        throw new Error('Failed to claim credit on backend');
+      }
+      fetchAllowance();
+    } catch (err) {
+      console.warn('[Ad Payout] Error updating allowance, proceeding anyway:', err);
+    }
+
+    // 2. Open drawer and load summary
+    setIsSheetVisible(true);
+    await fetchSummary(currentPostId);
+  }, [currentPostId, session, showToast, fetchAllowance, fetchSummary]);
+
+  const onAdFailed = useCallback((error: string) => {
+    showToast({ message: error, type: 'error' });
+  }, [showToast]);
+
+  // Wire up Mobile Ads hook
+  const { showAd, isLoaded, isLoading, reloadAd } = useRewardedAd(onRewardedComplete, onAdFailed);
 
   // Public trigger method
   const requestSummary = async (postId: string, postTitle: string, initialSummaryText?: string | null) => {
@@ -138,7 +138,9 @@ export const SummaryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await fetchSummary(postId);
     } else {
       // Quota exhausted - prompt ad
-      reloadAd(); // Preload ad if not already preloaded
+      if (!isLoaded && !isLoading) {
+        reloadAd(); // Preload ad if not already preloaded/loading
+      }
       setIsAdGateVisible(true);
     }
   };

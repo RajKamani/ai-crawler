@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 
 let RewardedAd: any;
 let RewardedAdEventType: any;
+let AdEventType: any;
 let TestIds: any = { REWARDED: 'test-ad-unit-id' };
 
 if (Platform.OS !== 'web') {
@@ -10,12 +11,14 @@ if (Platform.OS !== 'web') {
     const GoogleMobileAds = require('react-native-google-mobile-ads');
     RewardedAd = GoogleMobileAds.RewardedAd;
     RewardedAdEventType = GoogleMobileAds.RewardedAdEventType;
+    AdEventType = GoogleMobileAds.AdEventType;
     TestIds = GoogleMobileAds.TestIds;
   } catch (e) {
     console.warn('Google Mobile Ads could not be loaded', e);
   }
 } else {
   RewardedAdEventType = { LOADED: 'LOADED', EARNED_REWARD: 'EARNED_REWARD' };
+  AdEventType = { LOADED: 'LOADED', CLOSED: 'CLOSED', ERROR: 'ERROR' };
 }
 
 // AdMob Test Unit IDs
@@ -27,85 +30,148 @@ const adUnitId = Platform.select({
 
 export function useRewardedAd(onRewardedComplete: () => void, onAdFailed: (error: string) => void) {
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  
   const rewardedAdRef = useRef<any>(null);
+  const isLoadingRef = useRef(false);
+  const onRewardedCompleteRef = useRef(onRewardedComplete);
+  const onAdFailedRef = useRef(onAdFailed);
 
-  const loadAd = useCallback(() => {
-    setIsLoaded(false);
-
-    if (Platform.OS === 'web' || !RewardedAd) {
-      // Mock ad for web
-      setIsLoaded(true);
-      return () => { };
-    }
-
-    // Create new RewardedAd instance
-    const rewardedAd = RewardedAd.createForAdRequest(adUnitId, {
-      requestNonPersonalizedAdsOnly: true,
-    });
-
-    const unsubscribeLoaded = rewardedAd.addAdEventListener(RewardedAdEventType.LOADED, () => {
-      setIsLoaded(true);
-    });
-
-    const unsubscribeEarned = rewardedAd.addAdEventListener(
-      RewardedAdEventType.EARNED_REWARD,
-      () => {
-        setIsLoaded(false);
-        onRewardedComplete();
-      }
-    );
-
-    const unsubscribeClosed = rewardedAd.addAdEventListener(
-      RewardedAdEventType.LOADED, // Note: standard pattern handles close separately but EARNED covers payout
-      () => {
-        // Handle preloading next ad after dismiss/earning reward
-      }
-    );
-
-    // Catch ad loading error
-    const unsubscribeFailed = rewardedAd.addAdEventListener(
-      RewardedAdEventType.LOADED,
-      () => { }
-    );
-
-    // In react-native-google-mobile-ads, error events are caught with standard handlers
-    // For convenience:
-    rewardedAd.load();
-    rewardedAdRef.current = rewardedAd;
-
-    return () => {
-      unsubscribeLoaded();
-      unsubscribeEarned();
-      unsubscribeClosed();
-      unsubscribeFailed();
-    };
-  }, [onRewardedComplete]);
-
+  // Sync callbacks to refs to avoid tearing down the ad instance on callback reference changes
   useEffect(() => {
-    loadAd();
-    return () => {
-      rewardedAdRef.current = null;
-    };
-  }, [loadAd]);
+    onRewardedCompleteRef.current = onRewardedComplete;
+    onAdFailedRef.current = onAdFailed;
+  }, [onRewardedComplete, onAdFailed]);
 
-  const showAd = useCallback(() => {
+  const setIsLoadingState = (loading: boolean) => {
+    setIsLoading(loading);
+    isLoadingRef.current = loading;
+  };
+
+  // Load function
+  const loadAd = useCallback(() => {
     if (Platform.OS === 'web' || !RewardedAd) {
-      onRewardedComplete();
+      setIsLoaded(true);
+      setIsLoadingState(false);
       return;
     }
 
-    if (isLoaded && rewardedAdRef.current) {
+    const ad = rewardedAdRef.current;
+    if (ad) {
+      // If native ad thinks it is already loaded, update React state and return
+      if (ad.loaded) {
+        setIsLoaded(true);
+        setIsLoadingState(false);
+        return;
+      }
+      
+      // If we are already loading, do not trigger load() again
+      if (isLoadingRef.current) {
+        return;
+      }
+
+      setIsLoadingState(true);
       try {
-        rewardedAdRef.current.show();
+        ad.load();
       } catch (err) {
-        onAdFailed(err instanceof Error ? err.message : 'Failed to display ad');
-        loadAd(); // Reload on failure
+        console.warn('Error loading rewarded ad:', err);
+        setIsLoadingState(false);
+      }
+    }
+  }, []);
+
+  // Initialize the ad instance once on mount
+  useEffect(() => {
+    if (Platform.OS === 'web' || !RewardedAd) {
+      setIsLoaded(true);
+      return;
+    }
+
+    // Create a single stable ad instance for the lifecycle of this hook
+    const rewardedAd = RewardedAd.createForAdRequest(adUnitId, {
+      requestNonPersonalizedAdsOnly: true,
+    });
+    rewardedAdRef.current = rewardedAd;
+
+    // Start initial load
+    setIsLoadingState(true);
+    try {
+      rewardedAd.load();
+    } catch (err) {
+      console.warn('Initial load error:', err);
+      setIsLoadingState(false);
+    }
+
+    // Subscribe to events using the unified listener
+    const unsubscribe = rewardedAd.addAdEventsListener(({ type, payload }: any) => {
+      switch (type) {
+        case AdEventType.LOADED:
+        case RewardedAdEventType.LOADED:
+          setIsLoaded(true);
+          setIsLoadingState(false);
+          break;
+
+        case RewardedAdEventType.EARNED_REWARD:
+          setIsLoaded(false);
+          setIsLoadingState(false);
+          onRewardedCompleteRef.current();
+          break;
+
+        case AdEventType.CLOSED:
+          setIsLoaded(false);
+          setIsLoadingState(true);
+          // Preload next ad immediately
+          try {
+            rewardedAd.load();
+          } catch (err) {
+            console.warn('Error preloading ad on close:', err);
+            setIsLoadingState(false);
+          }
+          break;
+
+        case AdEventType.ERROR:
+          setIsLoaded(false);
+          setIsLoadingState(false);
+          onAdFailedRef.current(payload?.message || 'Failed to load ad');
+          break;
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      rewardedAdRef.current = null;
+    };
+  }, []);
+
+  const showAd = useCallback(() => {
+    if (Platform.OS === 'web' || !RewardedAd) {
+      onRewardedCompleteRef.current();
+      return;
+    }
+
+    const ad = rewardedAdRef.current;
+    
+    // Check both React state and the native object's synchronous .loaded property
+    if (ad && ad.loaded) {
+      try {
+        ad.show();
+      } catch (err) {
+        onAdFailedRef.current(err instanceof Error ? err.message : 'Failed to display ad');
+        // Reload on failure
+        setIsLoaded(false);
+        setIsLoadingState(true);
+        try {
+          ad.load();
+        } catch (loadErr) {
+          setIsLoadingState(false);
+        }
       }
     } else {
-      onAdFailed('Ad not loaded yet, please try again.');
-      loadAd(); // Force trigger reload
+      onAdFailedRef.current('Ad not loaded yet, please try again.');
+      // Force trigger reload if not loaded/loading
+      loadAd();
     }
-  }, [isLoaded, loadAd, onAdFailed, onRewardedComplete]);
+  }, [loadAd]);
 
-  return { showAd, isLoaded, reloadAd: loadAd };
+  return { showAd, isLoaded, isLoading, reloadAd: loadAd };
 }
