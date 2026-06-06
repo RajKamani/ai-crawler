@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "479643653335",
+    "project_id": "ai-crawler-c8700",
+    "storage_bucket": "ai-crawler-c8700.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:479643653335:android:c573df4fa68e7083778c92",
+        "android_client_info": {
+          "package_name": "com.rajkamani.aicrawler"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCo9MrXFPweL2goMVRlBv4bMhGcEAXaD20"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -16,6 +16,7 @@
     },
     "android": {
       "package": "com.rajkamani.aicrawler",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#131313",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
