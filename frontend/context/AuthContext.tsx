@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
-import { supabase } from '../utils/supabase';
+import { supabase, isRefreshTokenProcessed } from '../utils/supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -61,6 +61,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (accessToken && refreshToken) {
+        if (isRefreshTokenProcessed(refreshToken)) {
+          console.log('[AuthContext] Refresh token already processed. Skipping duplicate setSession.');
+          return;
+        }
+
         const { data: currentSession } = await supabase.auth.getSession();
         if (currentSession?.session) {
           console.log('[AuthContext] Session already set. Skipping duplicate setSession.');

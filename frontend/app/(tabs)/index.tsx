@@ -308,7 +308,7 @@ export default function HomeFeedScreen() {
         <Ionicons name="search" size={18} color={colors.text} style={styles.searchIcon} />
         <TextInput
           style={[styles.searchInput, { color: colors.text }]}
-          placeholder="SEARCH TOPICS, LIBRARIES, IDEAS..."
+          placeholder="SEARCH TOPICS, LIBRARIES, IDEAS…"
           placeholderTextColor={colors.tabIconDefault}
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -462,7 +462,7 @@ export default function HomeFeedScreen() {
                 // Sources exist but no posts yet (crawl pending)
                 <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
                   <Ionicons name="hourglass-outline" size={48} color={colors.text} />
-                  <Text style={[styles.emptyText, { color: colors.tabIconDefault }]}>CRAWLING YOUR SOURCES...</Text>
+                  <Text style={[styles.emptyText, { color: colors.tabIconDefault }]}>CRAWLING YOUR SOURCES…</Text>
                   <Text style={[styles.emptySubText, { color: colors.tabIconDefault }]}>Posts will appear here shortly. Pull down to refresh.</Text>
                 </View>
               )
@@ -471,7 +471,7 @@ export default function HomeFeedScreen() {
               isLoading && posts.length > 0 ? (
                 <View style={[styles.footerLoader, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
                   <ActivityIndicator size="small" color={colors.primary} />
-                  <Text style={[styles.footerLoaderText, { color: colors.primary }]}>LOADING MORE POSTS...</Text>
+                  <Text style={[styles.footerLoaderText, { color: colors.primary }]}>LOADING MORE POSTS…</Text>
                 </View>
               ) : null
             }

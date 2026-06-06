@@ -32,3 +32,18 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false,
   },
 });
+
+// Track processed refresh tokens to prevent duplicate setSession calls (Supabase Token Reuse Detection)
+const processedRefreshTokens = new Set<string>();
+
+export const isRefreshTokenProcessed = (token: string): boolean => {
+  if (processedRefreshTokens.has(token)) {
+    return true;
+  }
+  processedRefreshTokens.add(token);
+  // Auto-clean after 10 seconds to prevent memory build-up
+  setTimeout(() => {
+    processedRefreshTokens.delete(token);
+  }, 10000);
+  return false;
+};

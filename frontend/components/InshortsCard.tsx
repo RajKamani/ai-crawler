@@ -345,6 +345,8 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
           <Pressable
             style={[styles.floatingBtn, { backgroundColor: colors.background, borderColor: colors.border }]}
             onPress={handleShare}
+            accessibilityRole="button"
+            accessibilityLabel="Share article"
           >
             <Ionicons
               name="share-social-outline"
@@ -358,6 +360,8 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
               triggerMedium();
               onToggleBookmark(post.id, post.is_bookmarked);
             }}
+            accessibilityRole="button"
+            accessibilityLabel={post.is_bookmarked ? "Remove bookmark" : "Bookmark article"}
           >
             <Animated.View style={{ transform: [{ scale: bookmarkScale }] }}>
               <Ionicons
@@ -370,6 +374,8 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
           <Pressable
             style={[styles.floatingBtn, { backgroundColor: colors.background, borderColor: colors.border }]}
             onPress={handleToggleSpeech}
+            accessibilityRole="button"
+            accessibilityLabel={isSpeaking ? "Stop reading out loud" : "Read article out loud"}
           >
             <Ionicons
               name={isSpeaking ? 'volume-high' : 'volume-high-outline'}
@@ -498,6 +504,8 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
             { borderColor: colors.border },
           ]}
           onPress={handleToggleSummary}
+          accessibilityRole="button"
+          accessibilityLabel="AI Aggregated takeaways"
         >
           <Ionicons
             name="sparkles"
@@ -517,6 +525,8 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
           triggerLight();
           Linking.openURL(post.url);
         }}
+        accessibilityRole="link"
+        accessibilityLabel={`Read full article at ${getDomain(post.url)}`}
       >
         <View style={styles.footerContent}>
           <Text style={[styles.footerText, { color: colors.text }]} numberOfLines={1}>

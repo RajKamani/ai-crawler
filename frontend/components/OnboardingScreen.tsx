@@ -69,14 +69,14 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
     if (!isLoadingFeed) return;
 
     const logs = [
-      '▶ INITIALIZING CORE ENGINE...',
-      '▶ ESTABLISHING SECURE CONNECTION TO SUPABASE...',
-      '▶ REGISTERING SELECTED CONTENT SOURCES...',
-      '▶ INITIATING RSS CRAWLER DAEMON...',
-      '▶ INITIATING REDDIT API WRAPPER...',
-      '▶ SPARKING LLM SUMMARIZATION INSTANCES...',
-      '▶ POPULATING PERSONALISED DOCK...',
-      '▶ OPTIMIZING CONTRAST AND FONTS...',
+      '▶ INITIALIZING CORE ENGINE…',
+      '▶ ESTABLISHING SECURE CONNECTION TO SUPABASE…',
+      '▶ REGISTERING SELECTED CONTENT SOURCES…',
+      '▶ INITIATING RSS CRAWLER DAEMON…',
+      '▶ INITIATING REDDIT API WRAPPER…',
+      '▶ SPARKING LLM SUMMARIZATION INSTANCES…',
+      '▶ POPULATING PERSONALISED DOCK…',
+      '▶ OPTIMIZING CONTRAST AND FONTS…',
       '▶ FEED GENERATION COMPLETE // ENJOY CRAWLER',
     ];
 
@@ -271,7 +271,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
     return (
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: colors.text }]}>LOADING INTELLIGENCE PLUGINS...</Text>
+        <Text style={[styles.loadingText, { color: colors.text }]}>LOADING INTELLIGENCE PLUGINS…</Text>
       </View>
     );
   }
@@ -303,7 +303,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
               {progressBar} {progress}%
             </Text>
             <Text style={styles.terminalText}>
-              ▶ STATUS: {progress < 100 ? 'SYNCHRONIZING FEED CLOUDS...' : 'INITIALIZATION COMPLETE '}
+              ▶ STATUS: {progress < 100 ? 'SYNCHRONIZING FEED CLOUDS…' : 'INITIALIZATION COMPLETE '}
               {progress < 100 && (
                 <Text style={[styles.terminalText, { opacity: cursorVisible ? 1 : 0 }]}>█</Text>
               )}

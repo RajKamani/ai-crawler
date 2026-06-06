@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
-import { supabase } from '../utils/supabase';
+import { supabase, isRefreshTokenProcessed } from '../utils/supabase';
 import { useTheme } from '@/hooks/useTheme';
 
 // Completes the OAuth session redirect handling for web/browser environments
@@ -131,6 +131,11 @@ export const AuthScreen: React.FC = () => {
         }
 
         if (accessToken && refreshToken) {
+          if (isRefreshTokenProcessed(refreshToken)) {
+            console.log('[AuthScreen] Refresh token already processed. Skipping duplicate setSession.');
+            return;
+          }
+
           const { data: currentSession } = await supabase.auth.getSession();
           if (currentSession?.session) {
             console.log('[AuthScreen] Session already set. Skipping duplicate setSession.');
