@@ -759,6 +759,16 @@ def start_scheduler():
             replace_existing=True
         )
 
+        # Add daily digest push notifier, runs daily at 8:00 AM UTC
+        from app.scheduler.digest_notifier import send_daily_digest_notifications
+        scheduler.add_job(
+            send_daily_digest_notifications,
+            trigger=CronTrigger(hour=8, minute=0),
+            id="daily_digest_push",
+            name="Send daily digest push notifications",
+            replace_existing=True
+        )
+
 def shutdown_scheduler():
     """Shutdown APScheduler"""
     if scheduler.running:

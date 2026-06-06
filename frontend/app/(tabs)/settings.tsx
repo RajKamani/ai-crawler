@@ -139,13 +139,7 @@ export default function SettingsHubScreen() {
             subtitle="Configure background crawl intervals"
             href="/settings/crawlers"
           />
-          <SettingsMenuItem
-            icon="bookmark"
-            iconColor="#FFCC00"
-            title="Saved Bookmarks"
-            subtitle="View your saved articles & repos"
-            href="/settings/bookmarks"
-          />
+
           <View style={[styles.menuItem, { borderBottomColor: colors.border }]}>
             <View style={[styles.iconContainer, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>
               <Ionicons name="notifications" size={18} color={colors.text} />

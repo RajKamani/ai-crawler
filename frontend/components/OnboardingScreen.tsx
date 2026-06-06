@@ -9,6 +9,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 import { API_BASE_URL, AUTH_HEADER } from '../constants/Config';
@@ -50,6 +51,68 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
   const [githubEnabled, setGithubEnabled] = useState(true);
   const [githubLanguage, setGithubLanguage] = useState('any');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [isLoadingFeed, setIsLoadingFeed] = useState(false);
+  const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
+  const [progress, setProgress] = useState(0);
+  const [cursorVisible, setCursorVisible] = useState(true);
+
+  useEffect(() => {
+    if (!isLoadingFeed) return;
+    const interval = setInterval(() => {
+      setCursorVisible((v) => !v);
+    }, 400);
+    return () => clearInterval(interval);
+  }, [isLoadingFeed]);
+
+  useEffect(() => {
+    if (!isLoadingFeed) return;
+
+    const logs = [
+      '▶ INITIALIZING CORE ENGINE...',
+      '▶ ESTABLISHING SECURE CONNECTION TO SUPABASE...',
+      '▶ REGISTERING SELECTED CONTENT SOURCES...',
+      '▶ INITIATING RSS CRAWLER DAEMON...',
+      '▶ INITIATING REDDIT API WRAPPER...',
+      '▶ SPARKING LLM SUMMARIZATION INSTANCES...',
+      '▶ POPULATING PERSONALISED DOCK...',
+      '▶ OPTIMIZING CONTRAST AND FONTS...',
+      '▶ FEED GENERATION COMPLETE // ENJOY CRAWLER',
+    ];
+
+    let logIndex = 0;
+    setTerminalLogs([logs[0]]);
+    
+    // Interval to add logs
+    const logInterval = setInterval(() => {
+      logIndex++;
+      if (logIndex < logs.length) {
+        setTerminalLogs((prev) => [...prev, logs[logIndex]]);
+      } else {
+        clearInterval(logInterval);
+      }
+    }, 400);
+
+    // Interval to update progress percentage
+    const progressInterval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(progressInterval);
+          // Complete onboarding after 100% and small delay
+          setTimeout(() => {
+            onComplete();
+          }, 300);
+          return 100;
+        }
+        return prev + 5;
+      });
+    }, 150);
+
+    return () => {
+      clearInterval(logInterval);
+      clearInterval(progressInterval);
+    };
+  }, [isLoadingFeed]);
 
   // Recommendations to pre-select
   const recommendedBlogs = [
@@ -187,7 +250,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
         }).catch(err => console.error('Immediate github crawl failed:', err));
       }
 
-      onComplete();
+      setIsLoadingFeed(true);
     } catch (err: any) {
       console.error('Onboarding submission failed:', err);
       const errMsg = err.message || '';
@@ -209,6 +272,44 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onComplete }
       <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={[styles.loadingText, { color: colors.text }]}>LOADING INTELLIGENCE PLUGINS...</Text>
+      </View>
+    );
+  }
+
+  if (isLoadingFeed) {
+    const barWidth = 20;
+    const filledBlocks = Math.floor((progress / 100) * barWidth);
+    const emptyBlocks = barWidth - filledBlocks;
+    const progressBar = '[' + '█'.repeat(filledBlocks) + '░'.repeat(emptyBlocks) + ']';
+
+    return (
+      <View style={[styles.terminalContainer, { backgroundColor: '#131313' }]}>
+        <SafeAreaView style={{ flex: 1 }}>
+          <View style={[styles.terminalHeader, { borderBottomColor: colors.primary }]}>
+            <View style={styles.terminalDotRow}>
+              <View style={[styles.terminalDot, { backgroundColor: '#ff5f56' }]} />
+              <View style={[styles.terminalDot, { backgroundColor: '#ffbd2e' }]} />
+              <View style={[styles.terminalDot, { backgroundColor: '#27c93f' }]} />
+            </View>
+            <Text style={styles.terminalHeaderText}>CRAWLER CORE SESSION // STAGE_1_INIT</Text>
+          </View>
+
+          <ScrollView style={styles.terminalBody} contentContainerStyle={styles.terminalBodyContent}>
+            {terminalLogs.map((log, index) => (
+              <Text key={index} style={styles.terminalText}>{log}</Text>
+            ))}
+            <Text style={styles.terminalText}> </Text>
+            <Text style={[styles.terminalText, { color: colors.primary }]}>
+              {progressBar} {progress}%
+            </Text>
+            <Text style={styles.terminalText}>
+              ▶ STATUS: {progress < 100 ? 'SYNCHRONIZING FEED CLOUDS...' : 'INITIALIZATION COMPLETE '}
+              {progress < 100 && (
+                <Text style={[styles.terminalText, { opacity: cursorVisible ? 1 : 0 }]}>█</Text>
+              )}
+            </Text>
+          </ScrollView>
+        </SafeAreaView>
       </View>
     );
   }
@@ -585,5 +686,44 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: 'SpaceMono',
     fontWeight: '700',
+  },
+  terminalContainer: {
+    flex: 1,
+    backgroundColor: '#131313',
+    padding: 24,
+  },
+  terminalHeader: {
+    borderBottomWidth: 1,
+    paddingBottom: 12,
+    marginBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  terminalDotRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  terminalDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  terminalHeaderText: {
+    fontSize: 10,
+    fontFamily: 'SpaceMono',
+    color: '#888888',
+  },
+  terminalBody: {
+    flex: 1,
+  },
+  terminalBodyContent: {
+    gap: 8,
+  },
+  terminalText: {
+    color: '#00ff66',
+    fontFamily: 'SpaceMono',
+    fontSize: 11,
+    lineHeight: 18,
   },
 });

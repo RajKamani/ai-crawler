@@ -45,29 +45,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="blogs"
+        name="bookmarks"
         options={{
-          title: 'Blogs',
+          title: 'Bookmarks',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'newspaper' : 'newspaper-outline'} size={20} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="reddit"
-        options={{
-          title: 'Reddit',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'logo-reddit' : 'logo-reddit'} size={20} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="github"
-        options={{
-          title: 'GitHub',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'logo-github' : 'logo-github'} size={20} color={color} />
+            <Ionicons name={focused ? 'bookmark' : 'bookmark-outline'} size={20} color={color} />
           ),
         }}
       />

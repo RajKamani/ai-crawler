@@ -46,3 +46,4 @@ yarn-error.*
 __pycache__
 steps.md
 scratch
+*_plan.md

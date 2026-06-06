@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Pressable,
   ScrollView,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,6 +23,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useToast } from '@/context/ToastContext';
 import { useSummary } from '@/context/SummaryContext';
 import { Header } from '@/components/Header';
+import { SkeletonCard } from '@/components/SkeletonCard';
+import { FeedErrorState } from '@/components/FeedErrorState';
+import { useHaptics } from '@/hooks/useHaptics';
 
 export default function HomeFeedScreen() {
   const colors = useTheme();
@@ -41,6 +45,26 @@ export default function HomeFeedScreen() {
   // Height container measurement
   const [containerHeight, setContainerHeight] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const { triggerLight, triggerMedium } = useHaptics();
+  const [isPreseeded, setIsPreseeded] = useState(false);
+  const [activePostId, setActivePostId] = useState<string | null>(null);
+
+
+
+  // Micro-animations for source chips selection
+  const chipScale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    chipScale.setValue(0.95);
+    Animated.spring(chipScale, {
+      toValue: 1.0,
+      useNativeDriver: true,
+      friction: 4,
+      tension: 40,
+    }).start();
+  }, [selectedSourceId]);
 
   const fetchUnreadCount = async () => {
     try {
@@ -66,6 +90,7 @@ export default function HomeFeedScreen() {
       const activePost = viewableItems[0].item;
       if (activePost && activePost.id) {
         markAsViewed(activePost.id);
+        setActivePostId(activePost.id);
       }
     }
   }).current;
@@ -113,13 +138,22 @@ export default function HomeFeedScreen() {
     fetchFeed(1, true);
   }, [debouncedQuery, selectedSourceId]);
 
+  // Set first post as active on load/reset
+  useEffect(() => {
+    if (posts.length > 0 && !activePostId) {
+      setActivePostId(posts[0].id);
+    }
+  }, [posts, activePostId]);
+
   const fetchFeed = async (pageNum: number, shouldReset = false) => {
     if (isLoading) return;
     setIsLoading(true);
     if (shouldReset) {
       setPosts([]);
+      setIsPreseeded(false);
     }
     try {
+      setFetchError(null);
       let url = `${API_BASE_URL}/posts?page=${pageNum}&limit=10`;
       if (selectedSourceId) {
         url += `&source_id=${selectedSourceId}`;
@@ -137,16 +171,32 @@ export default function HomeFeedScreen() {
       }
 
       const data = await response.json();
-      const newPosts = data.posts || [];
+      let newPosts = data.posts || [];
+
+      // Fetch preseed fallback on page 1 if feed is empty
+      if (newPosts.length === 0 && pageNum === 1 && !selectedSourceId && !debouncedQuery) {
+        const preseedRes = await fetch(`${API_BASE_URL}/posts/preseed?limit=15`, {
+          headers: { ...AUTH_HEADER },
+        });
+        if (preseedRes.ok) {
+          const preseedData = await preseedRes.json();
+          newPosts = preseedData.posts || [];
+          if (newPosts.length > 0) {
+            setIsPreseeded(true);
+          }
+        }
+      }
+
       if (shouldReset) {
         setPosts(newPosts);
       } else {
         setPosts((prev) => [...prev, ...newPosts]);
       }
       setPage(pageNum);
-      setHasMore(newPosts.length === 10);
-    } catch (error) {
+      setHasMore(newPosts.length === 10 && !isPreseeded);
+    } catch (error: any) {
       console.error('Error fetching feed:', error);
+      setFetchError(error.message || 'Failed to fetch news feed');
       setHasMore(false);
       showToast({ message: 'Failed to fetch news feed', type: 'error' });
     } finally {
@@ -156,6 +206,7 @@ export default function HomeFeedScreen() {
   };
 
   const handleRefresh = () => {
+    triggerLight();
     setIsRefreshing(true);
     setHasMore(true);
     fetchFeed(1, true);
@@ -221,10 +272,11 @@ export default function HomeFeedScreen() {
           containerHeight={containerHeight}
           onToggleBookmark={handleToggleBookmark}
           isViewed={viewedIds.has(item.id)}
+          isActive={activePostId === item.id}
         />
       );
     },
-    [containerHeight, viewedIds]
+    [containerHeight, viewedIds, activePostId]
   );
 
   return (
@@ -232,7 +284,7 @@ export default function HomeFeedScreen() {
       {/* Header Area */}
       <Header
         title="AI CRAWLER"
-        subtitle="PERSONALIZED FEED // INSHORTS"
+        subtitle={isPreseeded ? "TRENDING // WHILE FEED LOADS" : "PERSONALIZED FEED // INSHORTS"}
         unreadCount={unreadCount}
       />
 
@@ -241,6 +293,7 @@ export default function HomeFeedScreen() {
         <Pressable
           style={[styles.newPostsBanner, { backgroundColor: colors.primary, borderColor: colors.border }]}
           onPress={() => {
+            triggerLight();
             setNewPostsAvailable(false);
             handleRefresh();
           }}
@@ -270,60 +323,77 @@ export default function HomeFeedScreen() {
 
       {/* Scrollable Provider Selection Chips */}
       {sources.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.chipsScrollView}
-          contentContainerStyle={styles.chipsContent}
-        >
-          <Pressable
-            style={[
-              styles.chipButton,
-              { borderColor: colors.border, backgroundColor: colors.background },
-              selectedSourceId === null && { backgroundColor: colors.primary, borderColor: colors.primary },
-            ]}
-            onPress={() => setSelectedSourceId(null)}
+        <View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.chipsScrollView}
+            contentContainerStyle={styles.chipsContent}
           >
-            <Text
+            <Pressable
               style={[
-                styles.chipText,
-                { color: colors.text },
-                selectedSourceId === null && { color: '#ffffff' },
+                styles.chipButton,
+                { borderColor: colors.border, backgroundColor: colors.background },
+                selectedSourceId === null && { backgroundColor: colors.primary, borderColor: colors.primary },
               ]}
+              onPress={() => {
+                triggerLight();
+                setSelectedSourceId(null);
+              }}
             >
-              ALL FEED
-            </Text>
-          </Pressable>
-          {sources.map((src) => {
-            const isActive = selectedSourceId === src.id;
-            return (
-              <Pressable
-                key={src.id}
-                style={[
-                  styles.chipButton,
-                  { borderColor: colors.border, backgroundColor: colors.background },
-                  isActive && { backgroundColor: colors.primary, borderColor: colors.primary },
-                ]}
-                onPress={() => setSelectedSourceId(src.id)}
-              >
+              <Animated.View style={selectedSourceId === null ? { transform: [{ scale: chipScale }] } : undefined}>
                 <Text
                   style={[
                     styles.chipText,
                     { color: colors.text },
-                    isActive && { color: '#ffffff' },
+                    selectedSourceId === null && { color: '#ffffff' },
                   ]}
                 >
-                  {src.name.toUpperCase()}
+                  ALL FEED
                 </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+              </Animated.View>
+            </Pressable>
+            {sources.map((src) => {
+              const isActive = selectedSourceId === src.id;
+              return (
+                <Pressable
+                  key={src.id}
+                  style={[
+                    styles.chipButton,
+                    { borderColor: colors.border, backgroundColor: colors.background },
+                    isActive && { backgroundColor: colors.primary, borderColor: colors.primary },
+                  ]}
+                  onPress={() => {
+                    triggerLight();
+                    setSelectedSourceId(src.id);
+                  }}
+                >
+                  <Animated.View style={isActive ? { transform: [{ scale: chipScale }] } : undefined}>
+                    <Text
+                      style={[
+                        styles.chipText,
+                        { color: colors.text },
+                        isActive && { color: '#ffffff' },
+                      ]}
+                    >
+                      {src.name.toUpperCase()}
+                    </Text>
+                  </Animated.View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
       )}
 
       {/* Main Snapping Area */}
       <View
-        style={[styles.feedWrapper, { backgroundColor: colors.background }]}
+        style={[
+          styles.feedWrapper,
+          {
+            backgroundColor: colors.background,
+          }
+        ]}
         onLayout={(e) => setContainerHeight(e.nativeEvent.layout.height)}
       >
         {containerHeight > 0 && (
@@ -349,9 +419,14 @@ export default function HomeFeedScreen() {
             })}
             ListEmptyComponent={
               isLoading ? (
-                <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
-                  <ActivityIndicator size="large" color={colors.primary} />
+                <View style={{ flex: 1, height: containerHeight }}>
+                  <SkeletonCard containerHeight={containerHeight} />
                 </View>
+              ) : fetchError ? (
+                <FeedErrorState
+                  message={fetchError.toUpperCase()}
+                  onRetry={handleRefresh}
+                />
               ) : sourcesLoaded && sources.length === 0 ? (
                 // No sources selected at all — guide user to add some
                 <View style={[styles.noSourcesContainer, { backgroundColor: colors.background }]}>
@@ -364,14 +439,20 @@ export default function HomeFeedScreen() {
                   </Text>
                   <Pressable
                     style={[styles.addSourcesBtn, { backgroundColor: colors.primary, borderColor: colors.border }]}
-                    onPress={() => router.push('/settings')}
+                    onPress={() => {
+                      triggerLight();
+                      router.push('/settings');
+                    }}
                   >
                     <Ionicons name="settings-outline" size={16} color="#ffffff" />
                     <Text style={styles.addSourcesBtnText}>GO TO SETTINGS → ADD SOURCES</Text>
                   </Pressable>
                   <Pressable
                     style={[styles.addSourcesSecondaryBtn, { borderColor: colors.border, backgroundColor: colors.surfaceContainer }]}
-                    onPress={() => router.push('/settings/subreddits')}
+                    onPress={() => {
+                      triggerLight();
+                      router.push('/settings/subreddits');
+                    }}
                   >
                     <Ionicons name="logo-reddit" size={14} color={colors.text} />
                     <Text style={[styles.addSourcesSecondaryText, { color: colors.text }]}>BROWSE POPULAR SUBREDDITS</Text>

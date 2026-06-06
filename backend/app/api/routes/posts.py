@@ -551,11 +551,7 @@ async def get_daily_digest(user = Depends(get_current_user)):
         for s in sources_res.data:
             s_type = s["type"]
             s_url = s["url"]
-            if s_type == "github":
-                allowed_source_ids.append(s["id"])
-            elif s_type == "reddit" and (not active_sub_names or clean_sub_name(s_url) in active_sub_names):
-                allowed_source_ids.append(s["id"])
-            elif s_type == "blog" and (not active_blog_urls or clean_blog_url(s_url) in active_blog_urls):
+            if s_type == "blog" and (not active_blog_urls or clean_blog_url(s_url) in active_blog_urls):
                 allowed_source_ids.append(s["id"])
 
         if not allowed_source_ids:
@@ -677,3 +673,74 @@ async def get_daily_digest(user = Depends(get_current_user)):
     except Exception as e:
         logger.error(f"Error in get_daily_digest: {e}")
         raise HTTPException(500, f"Failed to generate daily digest: {str(e)}")
+
+
+@router.get("/preseed")
+async def get_preseed_posts(
+    limit: int = Query(15, ge=1, le=50),
+    user = Depends(get_current_user)
+):
+    """
+    Get recent curated posts from global sources.
+    This gives brand new users immediate content before their personal crawls complete.
+    """
+    try:
+        # Fetch active sources
+        sources_res = supabase.table("sources") \
+            .select("id, name, type") \
+            .eq("is_active", True) \
+            .execute()
+            
+        source_map = {s["id"]: s for s in sources_res.data}
+        source_ids = list(source_map.keys())
+        
+        if not source_ids:
+            return {"posts": [], "count": 0}
+            
+        # Fetch recent posts from these sources
+        res = supabase.table("posts") \
+            .select("*") \
+            .in_("source_id", source_ids) \
+            .order("published_at", desc=True) \
+            .limit(limit) \
+            .execute()
+            
+        posts = []
+        for p in res.data:
+            post = format_post(p)
+            # Attach sources details manually
+            sid = post.get("source_id")
+            if sid in source_map:
+                post["sources"] = source_map[sid]
+            posts.append(post)
+            
+        # Check bookmark and view status for this user
+        if posts and user:
+            post_ids = [p["id"] for p in posts]
+            
+            bookmarks_res = supabase.table("bookmarks") \
+                .select("post_id") \
+                .eq("user_id", user.id) \
+                .in_("post_id", post_ids) \
+                .execute()
+            bookmarked_ids = set(b["post_id"] for b in bookmarks_res.data)
+            
+            views_res = supabase.table("post_views") \
+                .select("post_id") \
+                .eq("user_id", user.id) \
+                .in_("post_id", post_ids) \
+                .execute()
+            viewed_ids = set(v["post_id"] for v in views_res.data)
+            
+            for post in posts:
+                post["is_bookmarked"] = post["id"] in bookmarked_ids
+                post["is_viewed"] = post["id"] in viewed_ids
+        else:
+            for post in posts:
+                post["is_bookmarked"] = False
+                post["is_viewed"] = False
+                
+        return {"posts": posts, "count": len(posts)}
+    except Exception as e:
+        logger.error(f"Error fetching preseed posts: {e}")
+        raise HTTPException(500, f"Failed to fetch preseed posts: {str(e)}")

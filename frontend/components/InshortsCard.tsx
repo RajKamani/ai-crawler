@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Share,
+  Animated,
 } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { PostType } from './PostCard';
@@ -16,13 +17,22 @@ import { MarkdownRenderer } from './MarkdownRenderer';
 import { useTheme } from '@/hooks/useTheme';
 import { useToast } from '@/context/ToastContext';
 import { useSummary } from '@/context/SummaryContext';
+import { useHaptics } from '@/hooks/useHaptics';
 
+// Safely require expo-speech to avoid module evaluation errors when native module is missing
+let Speech: any = null;
+try {
+  Speech = require('expo-speech');
+} catch (error) {
+  // Gracefully handle missing native module
+}
 
 interface InshortsCardProps {
   post: PostType;
   containerHeight: number;
   onToggleBookmark: (postId: string, isBookmarked: boolean) => void;
   isViewed?: boolean;
+  isActive?: boolean;
 }
 
 const getMediaUrl = (post: PostType) => {
@@ -64,12 +74,145 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
   containerHeight,
   onToggleBookmark,
   isViewed = false,
+  isActive = false,
 }) => {
   const colors = useTheme();
   const isDark = colors.isDark;
   const { showToast } = useToast();
   const { requestSummary } = useSummary();
   const [similarExpanded, setSimilarExpanded] = useState(false);
+  const { triggerLight, triggerMedium } = useHaptics();
+  const bookmarkScale = useRef(new Animated.Value(1)).current;
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  // Stop speaking when card becomes inactive
+  useEffect(() => {
+    if (!isActive && isSpeaking) {
+      if (Speech && Speech.stop) {
+        try {
+          Speech.stop();
+        } catch (e) {}
+      }
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch (e) {}
+      }
+      setIsSpeaking(false);
+    }
+  }, [isActive, isSpeaking]);
+
+  // Clean up speech on unmount
+  useEffect(() => {
+    return () => {
+      if (Speech && Speech.stop) {
+        try {
+          Speech.stop();
+        } catch (e) {}
+      }
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch (e) {}
+      }
+    };
+  }, []);
+
+  const handleToggleSpeech = async () => {
+    triggerLight();
+    try {
+      if (isSpeaking) {
+        if (Speech && Speech.stop) {
+          try {
+            await Speech.stop();
+          } catch (e) {}
+        }
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+          try {
+            window.speechSynthesis.cancel();
+          } catch (e) {}
+        }
+        setIsSpeaking(false);
+      } else {
+        if (Speech && Speech.stop) {
+          try {
+            await Speech.stop();
+          } catch (e) {}
+        }
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+          try {
+            window.speechSynthesis.cancel();
+          } catch (e) {}
+        }
+
+        const textToSpeak = `${post.title}. ${post.content || ''}`;
+        let started = false;
+
+        // Try Expo Speech first
+        if (Speech && Speech.speak) {
+          try {
+            Speech.speak(textToSpeak, {
+              onDone: () => setIsSpeaking(false),
+              onError: (e: any) => {
+                console.error('Speech error:', e);
+                setIsSpeaking(false);
+              },
+              onStopped: () => setIsSpeaking(false),
+            });
+            started = true;
+          } catch (e) {
+            console.warn('ExpoSpeech speak failed:', e);
+          }
+        }
+
+        // Try Web Speech API fallback if Expo Speech didn't start
+        if (!started && typeof window !== 'undefined' && window.speechSynthesis) {
+          try {
+            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            utterance.onend = () => setIsSpeaking(false);
+            utterance.onerror = (e) => {
+              console.error('Web Speech API error:', e);
+              setIsSpeaking(false);
+            };
+            window.speechSynthesis.speak(utterance);
+            started = true;
+          } catch (e) {
+            console.warn('Web Speech API failed:', e);
+          }
+        }
+
+        if (started) {
+          setIsSpeaking(true);
+        } else {
+          showToast({
+            message: 'Speech synthesis is not available on this platform/build.',
+            type: 'error',
+          });
+          setIsSpeaking(false);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to toggle speech:', err);
+      setIsSpeaking(false);
+    }
+  };
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.spring(bookmarkScale, {
+        toValue: 1.25,
+        useNativeDriver: true,
+        speed: 40,
+        bounciness: 12,
+      }),
+      Animated.spring(bookmarkScale, {
+        toValue: 1.0,
+        useNativeDriver: true,
+        speed: 40,
+        bounciness: 12,
+      })
+    ]).start();
+  }, [post.is_bookmarked]);
 
   const sourceType = post.sources?.type || 'blog';
   const sourceName = post.sources?.name || post.author || 'Blog';
@@ -127,6 +270,7 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
 
   // Share post action
   const handleShare = async () => {
+    triggerLight();
     try {
       await Share.share({
         title: post.title,
@@ -139,12 +283,13 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
   };
 
   const handleToggleSummary = async () => {
+    triggerLight();
     requestSummary(post.id, post.title, post.ai_summary);
   };
 
   // Calculate layout heights based on containerHeight
   const headerHeight = Math.floor(containerHeight * 0.28);
-  const footerHeight = 56;
+  const footerHeight = 36;
   const contentHeight = containerHeight - headerHeight - footerHeight;
 
   const mediaUrl = getMediaUrl(post);
@@ -209,12 +354,27 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
           </Pressable>
           <Pressable
             style={[styles.floatingBtn, { backgroundColor: colors.background, borderColor: colors.border }]}
-            onPress={() => onToggleBookmark(post.id, post.is_bookmarked)}
+            onPress={() => {
+              triggerMedium();
+              onToggleBookmark(post.id, post.is_bookmarked);
+            }}
+          >
+            <Animated.View style={{ transform: [{ scale: bookmarkScale }] }}>
+              <Ionicons
+                name={post.is_bookmarked ? 'bookmark' : 'bookmark-outline'}
+                size={20}
+                color={post.is_bookmarked ? colors.primary : colors.text}
+              />
+            </Animated.View>
+          </Pressable>
+          <Pressable
+            style={[styles.floatingBtn, { backgroundColor: colors.background, borderColor: colors.border }]}
+            onPress={handleToggleSpeech}
           >
             <Ionicons
-              name={post.is_bookmarked ? 'bookmark' : 'bookmark-outline'}
+              name={isSpeaking ? 'volume-high' : 'volume-high-outline'}
               size={20}
-              color={post.is_bookmarked ? colors.primary : colors.text}
+              color={isSpeaking ? colors.primary : colors.text}
             />
           </Pressable>
         </View>
@@ -258,18 +418,7 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
               </View>
             )}
 
-            {post.sources?.type === 'reddit' && post.raw_data && (
-              <View style={[styles.redditStatsRow, { backgroundColor: isDark ? '#2b1b1b' : '#fcf0ef', borderColor: theme.accentColor }]}>
-                <View style={styles.redditStat}>
-                  <Ionicons name="arrow-up" size={14} color={theme.accentColor} />
-                  <Text style={[styles.redditStatText, { color: theme.accentColor }]}>{(post.raw_data.score ?? 0).toLocaleString()} upvotes</Text>
-                </View>
-                <View style={styles.redditStat}>
-                  <Ionicons name="chatbox-ellipses" size={14} color={colors.text} />
-                  <Text style={[styles.redditStatText, { color: theme.accentColor }]}>{(post.raw_data.num_comments ?? 0).toLocaleString()} comments</Text>
-                </View>
-              </View>
-            )}
+
 
             <Text style={[styles.bodyText, { color: colors.text }]}>
               {post.content ? post.content.replace(/\n+/g, '\n\n') : 'No content preview available.'}
@@ -364,13 +513,16 @@ export const InshortsCard: React.FC<InshortsCardProps> = ({
       {/* Footer Bottom Sheet Bar */}
       <Pressable
         style={[styles.footerContainer, { height: footerHeight, backgroundColor: colors.surfaceContainer, borderTopColor: colors.border }]}
-        onPress={() => Linking.openURL(post.url)}
+        onPress={() => {
+          triggerLight();
+          Linking.openURL(post.url);
+        }}
       >
         <View style={styles.footerContent}>
           <Text style={[styles.footerText, { color: colors.text }]} numberOfLines={1}>
             read more at <Text style={[styles.footerDomain, { color: colors.primary }]}>{getDomain(post.url)}</Text>
           </Text>
-          <Ionicons name="chevron-forward-outline" size={14} color={colors.primary} />
+          <Ionicons name="chevron-forward-outline" size={12} color={colors.primary} />
         </View>
       </Pressable>
     </View>
@@ -488,7 +640,7 @@ const styles = StyleSheet.create({
     color: '#1c1b1b',
     fontSize: 14,
     lineHeight: 22,
-    fontFamily: 'SpaceMono',
+    fontFamily: undefined, // System sans-serif for readability on long-form content
   },
   githubStatsRow: {
     flexDirection: 'row',
@@ -591,7 +743,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     color: '#1c1b1b',
-    fontSize: 12,
+    fontSize: 10.5,
     fontWeight: '500',
     fontFamily: 'SpaceMono',
   },
