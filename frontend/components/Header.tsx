@@ -5,6 +5,7 @@ import { router, useNavigation } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '@/hooks/useTheme';
 import { useSummary } from '@/context/SummaryContext';
+import { useToast } from '@/context/ToastContext';
 
 interface HeaderProps {
   title: string;
@@ -16,6 +17,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ title, subtitle, titleIcon, unreadCount }) => {
   const colors = useTheme();
   const { allowanceRemaining, fetchAllowance } = useSummary();
+  const { showToast } = useToast();
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
   const navigation = useNavigation();
 
@@ -69,12 +71,22 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, titleIcon, unre
       </View>
 
       <View style={styles.headerRight}>
-        <View style={[styles.creditsBadge, { borderColor: colors.border, backgroundColor: colors.surfaceContainer }]}>
+        <Pressable
+          style={[styles.creditsBadge, { borderColor: colors.border, backgroundColor: colors.surfaceContainer }]}
+          onPress={() => {
+            showToast({
+              message: allowanceRemaining !== null
+                ? `You have ${allowanceRemaining} daily AI Summary credits remaining.`
+                : 'Loading your daily AI Summary credits...',
+              type: 'success'
+            });
+          }}
+        >
           <Ionicons name="sparkles-outline" size={12} color={colors.primary} />
           <Text style={[styles.creditsText, { color: colors.text }]}>
-            {allowanceRemaining !== null ? `${allowanceRemaining} LEFT` : '...'}
+            {allowanceRemaining !== null ? `${allowanceRemaining} AI SUMMARIES` : '...'}
           </Text>
-        </View>
+        </Pressable>
 
         <Pressable
           style={styles.bellButton}
