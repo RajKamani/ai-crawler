@@ -89,9 +89,11 @@ async def get_posts(
     try:
         offset = (page - 1) * limit
         
-        # Retrieve user preference for github language if not specified in search query
+        # Retrieve user preference for github language & enabled state
+        github_enabled = True
         github_lang = None
         if hasattr(user, "user_metadata") and user.user_metadata:
+            github_enabled = user.user_metadata.get("github_enabled", True)
             github_lang = user.user_metadata.get("github_language")
             if github_lang and isinstance(github_lang, str):
                 github_lang = github_lang.lower().strip()
@@ -143,6 +145,8 @@ async def get_posts(
                     allowed_source_ids.append(s["id"])
                 elif s_type == "blog" and (not active_blog_urls or clean_blog_url(s_url) in active_blog_urls):
                     allowed_source_ids.append(s["id"])
+                elif s_type == "github" and github_enabled:
+                    allowed_source_ids.append(s["id"])
 
         if not allowed_source_ids:
             return {"posts": [], "page": page, "limit": limit, "count": 0}
@@ -152,10 +156,11 @@ async def get_posts(
         
         # 0. Source ID filtering (verify user has access to it)
         if source_id:
-            if source_id in allowed_source_ids:
-                base_query = base_query.eq("source_id", source_id)
-            else:
+            source_ids_list = [sid.strip() for sid in source_id.split(",") if sid.strip()]
+            valid_source_ids = [sid for sid in source_ids_list if sid in allowed_source_ids]
+            if not valid_source_ids:
                 return {"posts": [], "page": page, "limit": limit, "count": 0}
+            base_query = base_query.in_("source_id", valid_source_ids)
         else:
             base_query = base_query.in_("source_id", allowed_source_ids)
 
@@ -436,7 +441,11 @@ async def get_active_feed_sources(user = Depends(get_current_user)):
             .eq("is_active", True) \
             .execute()
 
-        # 4. Filter sources in Python to only include selected subreddits and blogs
+        github_enabled = True
+        if hasattr(user, "user_metadata") and user.user_metadata:
+            github_enabled = user.user_metadata.get("github_enabled", True)
+
+        # 4. Filter sources in Python to only include selected subreddits, blogs, and github
         filtered_sources = []
         for s in sources_res.data:
             s_type = s["type"]
@@ -444,6 +453,8 @@ async def get_active_feed_sources(user = Depends(get_current_user)):
             if s_type == "reddit" and clean_sub_name(s_url) in active_sub_names:
                 filtered_sources.append(s)
             elif s_type == "blog" and clean_blog_url(s_url) in active_blog_urls:
+                filtered_sources.append(s)
+            elif s_type == "github" and github_enabled:
                 filtered_sources.append(s)
 
         # Sort by name

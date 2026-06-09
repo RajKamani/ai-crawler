@@ -45,6 +45,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="github"
+        options={{
+          title: 'GitHub',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'logo-github' : 'logo-github'} size={20} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="bookmarks"
         options={{
           title: 'Bookmarks',

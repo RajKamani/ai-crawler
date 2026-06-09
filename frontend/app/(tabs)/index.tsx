@@ -9,10 +9,11 @@ import {
   Pressable,
   ScrollView,
   Animated,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 import { API_BASE_URL, AUTH_HEADER } from '@/constants/Config';
 import { PostType } from '@/components/PostCard';
 import { InshortsCard } from '@/components/InshortsCard';
@@ -29,6 +30,7 @@ import { useHaptics } from '@/hooks/useHaptics';
 
 export default function HomeFeedScreen() {
   const colors = useTheme();
+  const navigation = useNavigation();
   const { showToast } = useToast();
   const { allowanceRemaining, fetchAllowance } = useSummary();
   const [posts, setPosts] = useState<PostType[]>([]);
@@ -40,8 +42,17 @@ export default function HomeFeedScreen() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [sources, setSources] = useState<Array<{ id: string; name: string; type: string }>>([]);
   const [sourcesLoaded, setSourcesLoaded] = useState(false);
-  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
-  
+  const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
+  const [tempSelectedSourceIds, setTempSelectedSourceIds] = useState<string[]>([]);
+  const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+  const [filterSearchQuery, setFilterSearchQuery] = useState('');
+
+  useEffect(() => {
+    if (isFilterModalVisible) {
+      setTempSelectedSourceIds(selectedSourceIds);
+    }
+  }, [isFilterModalVisible, selectedSourceIds]);
+
   // Height container measurement
   const [containerHeight, setContainerHeight] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -50,8 +61,6 @@ export default function HomeFeedScreen() {
   const { triggerLight, triggerMedium } = useHaptics();
   const [isPreseeded, setIsPreseeded] = useState(false);
   const [activePostId, setActivePostId] = useState<string | null>(null);
-
-
 
   // Micro-animations for source chips selection
   const chipScale = useRef(new Animated.Value(1)).current;
@@ -64,7 +73,7 @@ export default function HomeFeedScreen() {
       friction: 4,
       tension: 40,
     }).start();
-  }, [selectedSourceId]);
+  }, [selectedSourceIds]);
 
   const fetchUnreadCount = async () => {
     try {
@@ -99,25 +108,32 @@ export default function HomeFeedScreen() {
     itemVisiblePercentThreshold: 50,
   }).current;
 
-  // Fetch active sources on mount
-  useEffect(() => {
-    const fetchSources = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/posts/sources`, {
-          headers: { ...AUTH_HEADER },
-        });
-        const data = await response.json();
-        if (response.ok) {
-          setSources(data.sources || []);
-        }
-      } catch (error) {
-        console.error('Error fetching sources:', error);
-      } finally {
-        setSourcesLoaded(true);
+  // Fetch active sources on mount & focus
+  const fetchSources = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/posts/sources`, {
+        headers: { ...AUTH_HEADER },
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setSources(data.sources || []);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching sources:', error);
+    } finally {
+      setSourcesLoaded(true);
+    }
+  };
+
+  useEffect(() => {
     fetchSources();
-  }, []);
+
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchSources();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   // Fetch unread count on mount and when viewedIds size changes
   useEffect(() => {
@@ -136,7 +152,7 @@ export default function HomeFeedScreen() {
   useEffect(() => {
     setHasMore(true);
     fetchFeed(1, true);
-  }, [debouncedQuery, selectedSourceId]);
+  }, [debouncedQuery, selectedSourceIds]);
 
   // Set first post as active on load/reset
   useEffect(() => {
@@ -155,8 +171,8 @@ export default function HomeFeedScreen() {
     try {
       setFetchError(null);
       let url = `${API_BASE_URL}/posts?page=${pageNum}&limit=10`;
-      if (selectedSourceId) {
-        url += `&source_id=${selectedSourceId}`;
+      if (selectedSourceIds.length > 0) {
+        url += `&source_id=${selectedSourceIds.join(',')}`;
       }
       if (debouncedQuery.trim()) {
         url += `&q=${encodeURIComponent(debouncedQuery)}`;
@@ -165,7 +181,7 @@ export default function HomeFeedScreen() {
       const response = await fetch(url, {
         headers: { ...AUTH_HEADER },
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -174,7 +190,7 @@ export default function HomeFeedScreen() {
       let newPosts = data.posts || [];
 
       // Fetch preseed fallback on page 1 if feed is empty
-      if (newPosts.length === 0 && pageNum === 1 && !selectedSourceId && !debouncedQuery) {
+      if (newPosts.length === 0 && pageNum === 1 && selectedSourceIds.length === 0 && !debouncedQuery) {
         const preseedRes = await fetch(`${API_BASE_URL}/posts/preseed?limit=15`, {
           headers: { ...AUTH_HEADER },
         });
@@ -323,7 +339,19 @@ export default function HomeFeedScreen() {
 
       {/* Scrollable Provider Selection Chips */}
       {sources.length > 0 && (
-        <View>
+        <View style={styles.chipsContainer}>
+          <Pressable
+            style={[styles.filterIconButton, { borderColor: colors.border, backgroundColor: colors.surfaceContainer }]}
+            onPress={() => {
+              triggerLight();
+              setIsFilterModalVisible(true);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Filter feed sources"
+          >
+            <Ionicons name="funnel-outline" size={13} color={colors.text} />
+          </Pressable>
+
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -334,19 +362,19 @@ export default function HomeFeedScreen() {
               style={[
                 styles.chipButton,
                 { borderColor: colors.border, backgroundColor: colors.background },
-                selectedSourceId === null && { backgroundColor: colors.primary, borderColor: colors.primary },
+                selectedSourceIds.length === 0 && { backgroundColor: colors.primary, borderColor: colors.primary },
               ]}
               onPress={() => {
                 triggerLight();
-                setSelectedSourceId(null);
+                setSelectedSourceIds([]);
               }}
             >
-              <Animated.View style={selectedSourceId === null ? { transform: [{ scale: chipScale }] } : undefined}>
+              <Animated.View style={selectedSourceIds.length === 0 ? { transform: [{ scale: chipScale }] } : undefined}>
                 <Text
                   style={[
                     styles.chipText,
                     { color: colors.text },
-                    selectedSourceId === null && { color: '#ffffff' },
+                    selectedSourceIds.length === 0 && { color: '#ffffff' },
                   ]}
                 >
                   ALL FEED
@@ -354,7 +382,7 @@ export default function HomeFeedScreen() {
               </Animated.View>
             </Pressable>
             {sources.map((src) => {
-              const isActive = selectedSourceId === src.id;
+              const isActive = selectedSourceIds.includes(src.id);
               return (
                 <Pressable
                   key={src.id}
@@ -365,7 +393,13 @@ export default function HomeFeedScreen() {
                   ]}
                   onPress={() => {
                     triggerLight();
-                    setSelectedSourceId(src.id);
+                    setSelectedSourceIds((prev) => {
+                      if (prev.includes(src.id)) {
+                        return prev.filter((id) => id !== src.id);
+                      } else {
+                        return [...prev, src.id];
+                      }
+                    });
                   }}
                 >
                   <Animated.View style={isActive ? { transform: [{ scale: chipScale }] } : undefined}>
@@ -385,6 +419,137 @@ export default function HomeFeedScreen() {
           </ScrollView>
         </View>
       )}
+
+      {/* Source Filter Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isFilterModalVisible}
+        onRequestClose={() => setIsFilterModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <Pressable style={styles.modalDismissArea} onPress={() => setIsFilterModalVisible(false)} />
+          <View style={[styles.modalCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+            <View style={[styles.modalHeader, { borderColor: colors.border }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="funnel-sharp" size={18} color={colors.primary} />
+                <Text style={[styles.modalTitleText, { color: colors.text }]}>FILTER SOURCES</Text>
+              </View>
+              <Pressable onPress={() => setIsFilterModalVisible(false)} style={styles.modalCloseBtn}>
+                <Ionicons name="close" size={22} color={colors.text} />
+              </Pressable>
+            </View>
+
+            {/* Filter Search Input */}
+            <View style={[styles.modalSearchInputBox, { borderColor: colors.border, backgroundColor: colors.surfaceContainer }]}>
+              <Ionicons name="search" size={16} color={colors.text} />
+              <TextInput
+                style={[styles.modalSearchInput, { color: colors.text }]}
+                placeholder="SEARCH SOURCES..."
+                placeholderTextColor={colors.tabIconDefault}
+                value={filterSearchQuery}
+                onChangeText={setFilterSearchQuery}
+                autoCorrect={false}
+                autoCapitalize="none"
+              />
+              {filterSearchQuery ? (
+                <Pressable onPress={() => setFilterSearchQuery('')}>
+                  <Ionicons name="close-circle" size={16} color={colors.text} />
+                </Pressable>
+              ) : null}
+            </View>
+
+            {/* Scrollable list of sources */}
+            <ScrollView style={styles.modalSourcesScroll} showsVerticalScrollIndicator={false}>
+              {/* All Feed Option */}
+              <Pressable
+                style={[
+                  styles.modalSourceItem,
+                  { borderColor: colors.border, backgroundColor: colors.surfaceContainer },
+                  tempSelectedSourceIds.length === 0 && { backgroundColor: colors.primary, borderColor: colors.primary }
+                ]}
+                onPress={() => {
+                  triggerLight();
+                  setTempSelectedSourceIds([]);
+                }}
+              >
+                <Ionicons name="apps-outline" size={18} color={tempSelectedSourceIds.length === 0 ? '#ffffff' : colors.primary} />
+                <Text style={[styles.modalSourceText, { color: colors.text }, tempSelectedSourceIds.length === 0 && { color: '#ffffff', fontWeight: '800' }]}>
+                  ALL FEED
+                </Text>
+                {tempSelectedSourceIds.length === 0 && <Ionicons name="checkmark-circle" size={18} color="#ffffff" style={{ marginLeft: 'auto' }} />}
+              </Pressable>
+
+              {/* Dynamic list */}
+              {sources
+                .filter(src => src.name.toLowerCase().includes(filterSearchQuery.toLowerCase()))
+                .map((src) => {
+                  const isActive = tempSelectedSourceIds.includes(src.id);
+                  let iconName: any = 'document-text-outline';
+                  let iconColor = colors.primary;
+                  if (src.type === 'reddit') {
+                    iconName = 'logo-reddit';
+                    iconColor = '#ff6b6b';
+                  } else if (src.type === 'github') {
+                    iconName = 'logo-github';
+                    iconColor = '#68d3fc';
+                  }
+
+                  return (
+                    <Pressable
+                      key={src.id}
+                      style={[
+                        styles.modalSourceItem,
+                        { borderColor: colors.border, backgroundColor: colors.background },
+                        isActive && { backgroundColor: colors.primary, borderColor: colors.primary }
+                      ]}
+                      onPress={() => {
+                        triggerLight();
+                        setTempSelectedSourceIds((prev) => {
+                          if (prev.includes(src.id)) {
+                            return prev.filter((id) => id !== src.id);
+                          } else {
+                            return [...prev, src.id];
+                          }
+                        });
+                      }}
+                    >
+                      <Ionicons name={iconName} size={18} color={isActive ? '#ffffff' : iconColor} />
+                      <Text style={[styles.modalSourceText, { color: colors.text }, isActive && { color: '#ffffff', fontWeight: '800' }]} numberOfLines={1}>
+                        {src.name.toUpperCase()}
+                      </Text>
+                      {isActive && <Ionicons name="checkmark-circle" size={18} color="#ffffff" style={{ marginLeft: 'auto' }} />}
+                    </Pressable>
+                  );
+                })}
+            </ScrollView>
+
+            {/* Modal Actions */}
+            <View style={[styles.modalFooter, { borderColor: colors.border }]}>
+              <Pressable
+                style={[styles.modalResetBtn, { borderColor: colors.border, backgroundColor: colors.surfaceContainer }]}
+                onPress={() => {
+                  triggerLight();
+                  setTempSelectedSourceIds([]);
+                }}
+              >
+                <Text style={[styles.modalResetText, { color: colors.text }]}>CLEAR ALL</Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.modalApplyBtn, { backgroundColor: colors.primary, borderColor: colors.border }]}
+                onPress={() => {
+                  triggerMedium();
+                  setSelectedSourceIds(tempSelectedSourceIds);
+                  setIsFilterModalVisible(false);
+                }}
+              >
+                <Text style={styles.modalApplyText}>APPLY FILTERS</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Main Snapping Area */}
       <View
@@ -618,10 +783,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: 'SpaceMono',
   },
-  chipsScrollView: {
-    maxHeight: 40,
+  chipsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginHorizontal: 20,
     marginBottom: 8,
+    gap: 8,
+  },
+  filterIconButton: {
+    width: 28,
+    height: 28,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chipsScrollView: {
+    flex: 1,
+    maxHeight: 36,
   },
   chipsContent: {
     gap: 8,
@@ -672,5 +850,100 @@ const styles = StyleSheet.create({
   },
   bannerIcon: {
     marginTop: -1,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalDismissArea: {
+    flex: 1,
+  },
+  modalCard: {
+    borderTopWidth: 2,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 0,
+    height: '60%',
+    padding: 20,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    paddingBottom: 12,
+    marginBottom: 16,
+  },
+  modalTitleText: {
+    fontFamily: 'SpaceMono-Bold',
+    fontSize: 16,
+    letterSpacing: 0.5,
+  },
+  modalCloseBtn: {
+    padding: 4,
+  },
+  modalSearchInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    height: 38,
+    gap: 8,
+    marginBottom: 16,
+  },
+  modalSearchInput: {
+    flex: 1,
+    fontFamily: 'SpaceMono',
+    fontSize: 12,
+  },
+  modalSourcesScroll: {
+    flex: 1,
+  },
+  modalSourceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    marginBottom: 10,
+    gap: 10,
+  },
+  modalSourceText: {
+    fontFamily: 'SpaceMono',
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    borderTopWidth: 1,
+    paddingTop: 16,
+    marginTop: 12,
+  },
+  modalResetBtn: {
+    flex: 1,
+    height: 44,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalResetText: {
+    fontFamily: 'SpaceMono-Bold',
+    fontSize: 12,
+  },
+  modalApplyBtn: {
+    flex: 2,
+    height: 44,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalApplyText: {
+    fontFamily: 'SpaceMono-Bold',
+    fontSize: 12,
+    color: '#ffffff',
   },
 });
