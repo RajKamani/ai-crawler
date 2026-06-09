@@ -21,10 +21,14 @@ if (Platform.OS !== 'web') {
   AdEventType = { LOADED: 'LOADED', CLOSED: 'CLOSED', ERROR: 'ERROR' };
 }
 
-// AdMob Test Unit IDs
+// AdMob Unit IDs (fallback to standard AdMob test unit IDs)
 const adUnitId = Platform.select({
-  android: __DEV__ ? TestIds.REWARDED : 'ca-app-pub-3940256099942544/5224354917', // Replace with real Android Ad Unit ID in prod
-  ios: __DEV__ ? TestIds.REWARDED : 'ca-app-pub-3940256099942544~1458002511',     // Replace with real iOS Ad Unit ID in prod
+  android: __DEV__
+    ? TestIds.REWARDED
+    : (process.env.EXPO_PUBLIC_ADMOB_ANDROID_REWARDED_UNIT_ID || 'ca-app-pub-3940256099942544/5224354917'),
+  ios: __DEV__
+    ? TestIds.REWARDED
+    : (process.env.EXPO_PUBLIC_ADMOB_IOS_REWARDED_UNIT_ID || 'ca-app-pub-3940256099942544/1712485313'),
   default: TestIds.REWARDED,
 }) || TestIds.REWARDED;
 

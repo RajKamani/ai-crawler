@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - ContextIQ</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #fcf9f8;
+            --text-color: #1c1b1b;
+            --primary-color: #bc000a;
+            --border-color: #1c1b1b;
+            --card-bg: #ffffff;
+            --muted-text: #5a4a48;
+            --link-color: #bc000a;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #131313;
+                --text-color: #fcf9f8;
+                --primary-color: #bc000a;
+                --border-color: #3a3a3a;
+                --card-bg: #1c1c1c;
+                --muted-text: #ad8883;
+                --link-color: #ff3b47;
+            }
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Outfit', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: var(--card-bg);
+            border: 2px solid var(--border-color);
+            padding: 40px;
+            box-shadow: 6px 6px 0px var(--border-color);
+        }
+
+        header {
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .brand {
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            font-size: 14px;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
+        }
+
+        .last-updated {
+            font-family: 'Space Mono', monospace;
+            font-size: 12px;
+            color: var(--muted-text);
+        }
+
+        h2 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-top: 40px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+
+        p, li {
+            font-size: 15px;
+            color: var(--text-color);
+            margin-bottom: 15px;
+        }
+
+        ul {
+            margin-top: 5px;
+            margin-bottom: 20px;
+            padding-left: 20px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        a {
+            color: var(--link-color);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .highlight-box {
+            background-color: var(--bg-color);
+            border-left: 4px solid var(--primary-color);
+            padding: 15px 20px;
+            margin: 25px 0;
+        }
+
+        .highlight-box p {
+            margin: 0;
+            font-size: 14px;
+            color: var(--muted-text);
+        }
+
+        footer {
+            margin-top: 50px;
+            border-top: 2px solid var(--border-color);
+            padding-top: 20px;
+            text-align: center;
+            font-family: 'Space Mono', monospace;
+            font-size: 12px;
+            color: var(--muted-text);
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 15px 10px;
+            }
+            .container {
+                padding: 20px;
+                border-width: 1px;
+                box-shadow: 4px 4px 0px var(--border-color);
+            }
+            h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="brand">// ContextIQ Security Portal</div>
+            <h1>Privacy Policy</h1>
+            <div class="last-updated">LAST UPDATED: JUNE 9, 2026</div>
+        </header>
+
+        <section>
+            <p>This Privacy Policy describes how <strong>ContextIQ</strong> ("we," "our," or "the App") collects, uses, and shares information when you use the App on your mobile device.</p>
+            <p>By downloading, installing, or using ContextIQ, you agree to the collection and use of information in accordance with this policy.</p>
+        </section>
+
+        <section>
+            <h2>1. Information We Collect</h2>
+            
+            <h3>A. Personal Information (via Google Sign-In)</h3>
+            <p>When you log in to ContextIQ using Google OAuth, we collect and store:</p>
+            <ul>
+                <li>Your <strong>Email Address</strong>: Used to identify your account, sync your settings across devices, and manage your usage quotas.</li>
+                <li>Your <strong>Display Name</strong>: Used to personalize your user interface.</li>
+                <li>Your <strong>Profile Picture</strong>: Cached to display in your settings and profile header.</li>
+            </ul>
+            <p>This authentication and user profile data is securely managed by our database provider, <strong>Supabase</strong>.</p>
+
+            <h3>B. App Preferences & Usage Data</h3>
+            <p>To customize your technical feed, we save:</p>
+            <ul>
+                <li><strong>Followed Sources</strong>: A list of the specific blogs, subreddits, and GitHub repositories you follow.</li>
+                <li><strong>Unread/Read State</strong>: Locally cached IDs of posts you have swiped/read, ensuring that read posts do not reappear in your feed.</li>
+                <li><strong>AI Summary Allowance</strong>: Your daily remaining credits for requesting Groq Llama-powered text-to-speech and AI digests.</li>
+            </ul>
+
+            <h3>C. Push Notification Tokens</h3>
+            <p>We collect and register your <strong>Expo Push Token</strong> to send you daily tech digests, breaking alerts, and newsletters. You can opt-out of push notifications at any time through your device settings.</p>
+        </section>
+
+        <section>
+            <h2>2. Third-Party Services We Use</h2>
+            <p>ContextIQ integrates with third-party service providers who may collect data used to identify your device or serve functionalities. These include:</p>
+            
+            <ul>
+                <li>
+                    <strong>Supabase (Authentication and Database)</strong>
+                    <br><em>Purpose:</em> Handles login credentials (OAuth) and stores user configurations.
+                    <br><em>Privacy Policy:</em> <a href="https://supabase.com/privacy" target="_blank">Supabase Privacy Policy</a>
+                </li>
+                <li style="margin-top: 15px;">
+                    <strong>Google AdMob (Advertising)</strong>
+                    <br><em>Purpose:</em> Displays rewarded ads which grant users additional daily AI Summary credits.
+                    <br><em>Privacy Policy:</em> <a href="https://policies.google.com/privacy" target="_blank">Google AdMob Privacy Policy</a>
+                </li>
+                <li style="margin-top: 15px;">
+                    <strong>Expo Push Notifications</strong>
+                    <br><em>Purpose:</em> Delivers notification payloads to your mobile device.
+                    <br><em>Privacy Policy:</em> <a href="https://expo.dev/privacy" target="_blank">Expo Privacy Policy</a>
+                </li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>3. How We Use Your Information</h2>
+            <p>We use the collected information for the following purposes:</p>
+            <ul>
+                <li><strong>To Provide and Maintain the Service:</strong> Populating feeds, managing bookmarks, and serving personalized digests.</li>
+                <li><strong>To Manage User Accounts:</strong> Checking credits and verifying authentication status.</li>
+                <li><strong>To Send Notifications:</strong> Generating morning newsletter digests and system alerts.</li>
+                <li><strong>To Serve Rewards:</strong> Integrating with AdMob to track completed rewarded video views.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>4. Data Sharing and Disclosure</h2>
+            <p>We <strong>do not</strong> sell, trade, rent, or lease your personal information to third parties. Your data is stored securely in our databases and is shared only with the operational third-party services listed in Section 2 for the sole purpose of making the App function.</p>
+            <p>We may disclose your information if required to do so by law or in response to valid requests by public authorities (e.g., a court or government agency).</p>
+        </section>
+
+        <section>
+            <h2>5. Data Security</h2>
+            <p>The security of your data is important to us. All network communications are conducted over encrypted HTTPS connections. However, please remember that no method of transmission over the internet, or method of electronic storage, is 100% secure. While we strive to use commercially acceptable means to protect your personal information, we cannot guarantee its absolute security.</p>
+        </section>
+
+        <section>
+            <h2>6. User Rights & Data Deletion</h2>
+            <p>You have the right to access, correct, or request the deletion of your personal data at any time.</p>
+            <ul>
+                <li><strong>Sign Out:</strong> You can sign out from the settings tab to remove active session tokens from your device.</li>
+                <li><strong>Data Deletion Requests:</strong> To request permanent deletion of your ContextIQ account, user metadata, and all followed source configurations, please email us at <a href="mailto:rajkamani2001@gmail.com">rajkamani2001@gmail.com</a>. We will process all deletion requests within 5 business days.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>7. Children's Privacy</h2>
+            <p>ContextIQ is not directed to anyone under the age of 13. We do not knowingly collect personally identifiable information from children under 13. If we discover that a child under 13 has provided us with personal information, we will delete it immediately. If you are a parent or guardian and you are aware that your child has provided us with personal information, please contact us.</p>
+        </section>
+
+        <section>
+            <h2>8. Changes to This Privacy Policy</h2>
+            <p>We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last Updated" date at the top. You are advised to review this Privacy Policy periodically for any changes.</p>
+        </section>
+
+        <section>
+            <h2>9. Contact Us</h2>
+            <p>If you have any questions or suggestions about this Privacy Policy, do not hesitate to contact us:</p>
+            <ul>
+                <li><strong>Developer Name:</strong> Raj Kamani</li>
+                <li><strong>Contact Email:</strong> <a href="mailto:rajkamani2001@gmail.com">rajkamani2001@gmail.com</a></li>
+            </ul>
+        </section>
+
+        <footer>
+            &copy; 2026 ContextIQ. All rights reserved.
+        </footer>
+    </div>
+</body>
+</html>

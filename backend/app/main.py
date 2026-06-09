@@ -4,6 +4,7 @@ from collections import defaultdict
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from app.config import settings
@@ -178,6 +179,20 @@ async def health_check():
         "app": settings.PROJECT_NAME,
         "version": "1.0.0"
     }
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy_policy():
+    """Privacy Policy page"""
+    try:
+        import os
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(current_dir, "privacy-policy.html")
+        with open(path, "r", encoding="utf-8") as f:
+            html_content = f.read()
+        return HTMLResponse(content=html_content, status_code=200)
+    except Exception as e:
+        logger.error(f"Error reading privacy policy file: {e}")
+        return HTMLResponse(content="<h1>Privacy Policy</h1><p>Under construction. Please check back later.</p>", status_code=500)
 
 if __name__ == "__main__":
     import uvicorn

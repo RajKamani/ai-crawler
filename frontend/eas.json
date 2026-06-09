@@ -19,7 +19,9 @@
     "production": {
       "distribution": "store",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://ai-content-crawler-backend.onrender.com/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://ai-content-crawler-backend.onrender.com/api/v1",
+        "EXPO_PUBLIC_ADMOB_ANDROID_REWARDED_UNIT_ID": "ca-app-pub-9058351549324020/3970156869",
+        "EXPO_PUBLIC_ADMOB_IOS_REWARDED_UNIT_ID": "ca-app-pub-9058351549324020/3970156869"
       }
     }
   },
