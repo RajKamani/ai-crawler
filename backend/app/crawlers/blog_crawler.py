@@ -22,24 +22,23 @@ class BlogCrawler(BaseCrawler):
             source_name=source["name"]
         )
 
-    async def crawl_user_blogs(self, user_id: str):
-        """Crawl all active user-added custom blog feeds for a specific user"""
-        logger.info(f"Crawling user custom blogs for user {user_id}...")
+    async def crawl_all_custom_blogs(self):
+        """Crawl all active custom blog feeds globally, deduplicated across all users"""
+        logger.info("Crawling all custom user blogs...")
         total_found = 0
         total_saved = 0
         try:
-            # Fetch all active user blogs for the user
+            # Fetch all active user blogs across all users
             result = supabase.table("user_blogs") \
                 .select("blog_name, blog_url") \
-                .eq("user_id", user_id) \
                 .eq("is_active", True) \
                 .execute()
             
             if not result.data:
-                logger.info(f"No active user custom blogs found for user {user_id}.")
+                logger.info("No active user custom blogs found.")
                 return 0, 0
  
-            # Deduplicate blog URLs (likely already unique per user)
+            # Deduplicate blog URLs across all users
             unique_blogs = {}
             for row in result.data:
                 unique_blogs[row["blog_url"]] = row["blog_name"]
@@ -55,18 +54,22 @@ class BlogCrawler(BaseCrawler):
                     total_found += found
                     total_saved += saved
                 except Exception as e:
-                    logger.error(f"Error crawling user blog {blog_name} ({blog_url}) for user {user_id}: {e}")
+                    logger.error(f"Error crawling user blog {blog_name} ({blog_url}): {e}")
  
-            # Update last_crawled_at for this user's active user blogs
+            # Update last_crawled_at for all matched user active blogs
             now_iso = datetime.utcnow().isoformat() + "Z"
-            supabase.table("user_blogs") \
-                .update({"last_crawled_at": now_iso}) \
-                .eq("user_id", user_id) \
-                .eq("is_active", True) \
-                .execute()
+            # Update in batches of unique URLs (or single update if supported, using in_)
+            if unique_blogs:
+                url_list = list(unique_blogs.keys())
+                # Supabase Python client can handle .in_()
+                supabase.table("user_blogs") \
+                    .update({"last_crawled_at": now_iso}) \
+                    .in_("blog_url", url_list) \
+                    .eq("is_active", True) \
+                    .execute()
                  
         except Exception as e:
-            logger.error(f"Error in crawl_user_blogs: {e}")
+            logger.error(f"Error in crawl_all_custom_blogs: {e}")
         return total_found, total_saved
 
     async def _crawl_feed(self, feed_url: str, source_id: str, source_name: str) -> tuple[int, int]:

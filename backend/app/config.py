@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     DATABASE_URL: Optional[str] = None
     ENABLE_CRAWLER_WORKER_POOL: bool = True
+    ADMIN_EMAIL: Optional[str] = None
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod

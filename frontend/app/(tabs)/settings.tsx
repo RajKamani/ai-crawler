@@ -57,6 +57,7 @@ export default function SettingsHubScreen() {
   const { theme, toggleTheme } = useThemeContext();
   const email = user?.email || 'mock-user@local.host';
   const username = email.split('@')[0].toUpperCase();
+  const isAdmin = user?.email === process.env.EXPO_PUBLIC_ADMIN_EMAIL || user?.app_metadata?.role === 'admin';
 
   const { registerForPushNotifications, unregisterForPushNotifications } = usePushNotifications();
   const [pushEnabled, setPushEnabled] = useState(false);
@@ -132,13 +133,15 @@ export default function SettingsHubScreen() {
         {/* Menu Section: Preferences */}
         <Text style={[styles.sectionTitle, { color: colors.primary }]}>Preferences & Saves</Text>
         <View style={[styles.menuGroup, { backgroundColor: colors.background, borderColor: colors.border }]}>
-          <SettingsMenuItem
-            icon="timer-outline"
-            iconColor="#FF9500"
-            title="Crawler Schedules"
-            subtitle="Configure background crawl intervals"
-            href="/settings/crawlers"
-          />
+          {isAdmin && (
+            <SettingsMenuItem
+              icon="timer-outline"
+              iconColor="#FF9500"
+              title="Crawler Schedules"
+              subtitle="Configure background crawl intervals"
+              href="/settings/crawlers"
+            />
+          )}
 
           <View style={[styles.menuItem, { borderBottomColor: colors.border }]}>
             <View style={[styles.iconContainer, { backgroundColor: colors.surfaceContainer, borderColor: colors.border }]}>

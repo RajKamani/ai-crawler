@@ -75,20 +75,19 @@ class RedditCrawler(BaseCrawler):
             logger.error(f"Error in crawl_global for subreddit r/{sub_name}: {e}")
         return found_count, saved_count
 
-    async def crawl_user_subreddits(self, user_id: str):
-        """Crawl all active user-added subreddits for a specific user (unfiltered)"""
-        logger.info(f"Crawling user custom subreddits for user {user_id}...")
+    async def crawl_all_custom_subreddits(self):
+        """Crawl all active custom subreddits globally, deduplicated across all users (unfiltered)"""
+        logger.info("Crawling all custom user subreddits...")
         total_found = 0
         total_saved = 0
         try:
             result = supabase.table("user_subreddits") \
                 .select("subreddit_name") \
-                .eq("user_id", user_id) \
                 .eq("is_active", True) \
                 .execute()
             
             if not result.data:
-                logger.info(f"No active user custom subreddits found for user {user_id}.")
+                logger.info("No active user custom subreddits found.")
                 return 0, 0
  
             # Deduplicate subreddits
@@ -117,18 +116,21 @@ class RedditCrawler(BaseCrawler):
                             if res:
                                 total_saved += 1
                 except Exception as e:
-                    logger.error(f"Error crawling user subreddit r/{sub_name} for user {user_id}: {e}")
+                    logger.error(f"Error crawling custom subreddit r/{sub_name}: {e}")
  
-            # Update last_crawled_at for this user's subreddits
+            # Update last_crawled_at for all matched user subreddits
             now_iso = datetime.utcnow().isoformat() + "Z"
-            supabase.table("user_subreddits") \
-                .update({"last_crawled_at": now_iso}) \
-                .eq("user_id", user_id) \
-                .eq("is_active", True) \
-                .execute()
+            if unique_subs:
+                # Update all entries where the normalized name matches any of our unique subs
+                # To do this correctly across variations like "r/MachineLearning" vs "machinelearning",
+                # it's easiest to just update by active status for now since we just crawled all active ones
+                supabase.table("user_subreddits") \
+                    .update({"last_crawled_at": now_iso}) \
+                    .eq("is_active", True) \
+                    .execute()
  
         except Exception as e:
-            logger.error(f"Error in crawl_user_subreddits: {e}")
+            logger.error(f"Error in crawl_all_custom_subreddits: {e}")
         return total_found, total_saved
 
     async def _fetch_reddit_posts(self, subreddit_name: str) -> List[Dict[str, Any]]:

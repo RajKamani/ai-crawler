@@ -33,3 +33,20 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             detail=f"Authentication failed: {str(e)}",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+async def verify_admin(user = Depends(get_current_user)):
+    """
+    Ensure the current user has admin privileges.
+    """
+    email = getattr(user, 'email', '')
+    if settings.ADMIN_EMAIL and email == settings.ADMIN_EMAIL:
+        return user
+        
+    app_meta = getattr(user, 'app_metadata', {})
+    if app_meta.get('role') == 'admin':
+        return user
+        
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Admin privileges required"
+    )

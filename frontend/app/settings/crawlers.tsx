@@ -85,11 +85,11 @@ export default function CrawlerSettingsScreen() {
     switch (name) {
       case 'blog_global':
         return 'Global AI Company Blogs';
-      case 'blog_user':
+      case 'blog_custom':
         return 'User Custom RSS Blogs';
       case 'reddit_global':
         return 'Global Reddit (AI Keyword Filter)';
-      case 'reddit_user':
+      case 'reddit_custom':
         return 'User Custom Subreddits';
       case 'github_trending':
         return 'GitHub Trending Repositories';
@@ -102,11 +102,11 @@ export default function CrawlerSettingsScreen() {
     switch (name) {
       case 'blog_global':
         return 'Scrapes pre-seeded AI company websites (OpenAI, Anthropic, etc.)';
-      case 'blog_user':
+      case 'blog_custom':
         return 'Scrapes custom RSS feed links added to your feed settings';
       case 'reddit_global':
         return 'Monitors global AI subreddits and filters posts by keyword relevance';
-      case 'reddit_user':
+      case 'reddit_custom':
         return 'Monitors your custom subreddits and imports all hot threads unfiltered';
       case 'github_trending':
         return 'Searches GitHub for repositories tagged with AI/ML created in the last 7 days';

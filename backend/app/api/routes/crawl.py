@@ -6,9 +6,9 @@ from app.database import supabase
 from app.scheduler.jobs import (
     start_crawl_log,
     job_crawl_blog_global,
-    job_crawl_blog_user,
+    job_crawl_blog_custom,
     job_crawl_reddit_global,
-    job_crawl_reddit_user,
+    job_crawl_reddit_custom,
     job_crawl_github_trending
 )
 
@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 
 CRAWLER_JOBS = {
     "blog_global": job_crawl_blog_global,
-    "blog_user": job_crawl_blog_user,
+    "blog_custom": job_crawl_blog_custom,
     "reddit_global": job_crawl_reddit_global,
-    "reddit_user": job_crawl_reddit_user,
+    "reddit_custom": job_crawl_reddit_custom,
     "github_trending": job_crawl_github_trending
 }
 
@@ -36,20 +36,15 @@ async def trigger_crawl(
             raise HTTPException(400, f"Invalid crawler name: {crawler_name}")
 
         # Start the log synchronously to get a log_id
-        if crawler_name in ["blog_user", "reddit_user"]:
-            log_id = start_crawl_log(crawler_name, user_id=user.id)
-        else:
-            log_id = start_crawl_log(crawler_name)
+        # All crawlers are now global, so we don't pass user_id
+        log_id = start_crawl_log(crawler_name)
             
         if not log_id:
             raise HTTPException(500, "Failed to initialize crawl log")
 
         # Queue job function in background
         job_func = CRAWLER_JOBS[crawler_name]
-        if crawler_name in ["blog_user", "reddit_user"]:
-            background_tasks.add_task(job_func, user_id=user.id, log_id=log_id)
-        else:
-            background_tasks.add_task(job_func, log_id)
+        background_tasks.add_task(job_func, log_id)
 
         return {
             "crawler": crawler_name,
